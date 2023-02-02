@@ -261,6 +261,16 @@ impl Mapper {
         })
     }
 
+    #[pyo3(signature = (name, sequence, seed=true))]
+    pub fn query_genome<'s>(
+        &self,
+        name: String,
+        sequence: &[u8],
+        seed: bool,
+    ) -> PyResult<Vec<Hit>> {
+        self.query_draft(name, vec![sequence], seed)
+    }
+
     #[pyo3(signature = (name, contigs, seed=true))]
     pub fn query_draft<'s>(
         &self,

@@ -1,4 +1,4 @@
-# 🐍⏩🧬 pyskani [![Stars](https://img.shields.io/github/stars/althonos/pyskani.svg?style=social&maxAge=3600&label=Star)](https://github.com/althonos/pyskani/stargazers)
+# 🐍⛓️🧬 Pyskani [![Stars](https://img.shields.io/github/stars/althonos/pyskani.svg?style=social&maxAge=3600&label=Star)](https://github.com/althonos/pyskani/stargazers)
 
 *[PyO3](https://pyo3.rs/) bindings and Python interface to [skani](https://github.com/bluenote-1577/skani), a method for fast fast genomic identity calculation using sparse chaining.
 
@@ -77,8 +77,8 @@ import Bio.SeqIO
 sketcher = pyskani.Sketcher()
 
 # add a single draft genome to the sketcher, and index it
-ref = list(Bio.SeqIO.parse("vendor/skani/test_files/e.coli-EC590.fasta", "fasta"))
-sketcher.add_draft("E. coli EC590", (bytes(record.seq) for record in ref))
+ref = list(Bio.SeqIO.parse("vendor/skani/test_files/e.coli-o157.fasta", "fasta"))
+sketcher.add_draft("E. coli O157", [bytes(record.seq) for record in ref])
 
 # index the sketcher and get a mapper
 mapper = sketcher.index()
@@ -104,8 +104,8 @@ import skbio.io
 
 sketcher = pyskani.Sketcher()
 
-ref = list(skbio.io.read("vendor/skani/test_files/e.coli-EC590.fasta", "fasta"))
-sketcher.add_draft("E. coli EC590", (seq.values.view('B') for seq in ref))
+ref = list(skbio.io.read("vendor/skani/test_files/e.coli-o157.fasta", "fasta"))
+sketcher.add_draft("E. coli O157", [seq.values.view('B') for seq in ref])
 
 mapper = sketcher.index()
 
