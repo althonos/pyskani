@@ -12,6 +12,7 @@ use std::sync::Mutex;
 use crate::rayon::iter::ParallelIterator;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::PyOSError;
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use pyo3::types::PyString;
@@ -213,14 +214,34 @@ pub struct Mapper {
 
 #[pymethods]
 impl Mapper {
+    // TODO: Change `path` to support `os.PathLike` objects as well.
+    /// Load a mapper from a folder containing sketches.
+    ///
+    /// Arguments:
+    ///     path (`str`): The path to the folder containing the sketched 
+    ///         sequences. 
+    ///
+    /// Returns:
+    ///     `~pyskani.Mapper`: A mapper with all sketches loaded in memory.
+    ///
+    /// Raises:
+    ///     `OSError`: When the files from the folder could not be opened.
+    ///     `ValueError`: When the sketches could not be deserialized.
+    ///
     #[classmethod]
     fn load(cls: &PyType, path: &str) -> PyResult<Self> {
         let folder = std::path::Path::new(path);
 
         // load marker sketches
-        let reader = match File::open(folder.join("markers.bin")).map(BufReader::new) {
+        let markers_path = folder.join("markers.bin");
+        let reader = match File::open(&markers_path).map(BufReader::new) {
             Ok(reader) => reader,
-            Err(err) => return Err(PyRuntimeError::new_err(err.to_string())),
+            Err(err) => return if let Some(code) = err.raw_os_error() {
+                let msg = format!("Failed to open {}", markers_path.display());
+                Err(PyOSError::new_err((code, msg)))
+            } else {
+                Err(PyRuntimeError::new_err(err.to_string()))
+            }
         };
         let (params, raw_markers) =
             match bincode::deserialize_from::<_, (SketchParams, Vec<skani::types::Sketch>)>(reader)
@@ -244,9 +265,15 @@ impl Mapper {
                 }
             })
         {
-            let reader = match File::open(entry.path()).map(BufReader::new) {
+            let entry_path = entry.path();
+            let reader = match File::open(&entry_path).map(BufReader::new) {
                 Ok(reader) => reader,
-                Err(err) => return Err(PyRuntimeError::new_err(err.to_string())),
+                Err(err) => return if let Some(code) = err.raw_os_error() {
+                    let msg = format!("Failed to open {}", markers_path.display());
+                    Err(PyOSError::new_err((code, msg)))
+                } else {
+                    Err(PyRuntimeError::new_err(err.to_string()))
+                }
             };
             match bincode::deserialize_from::<_, (SketchParams, skani::types::Sketch)>(reader) {
                 Ok((params, raw_sketch)) => sketches.push(Sketch::from(raw_sketch)),
