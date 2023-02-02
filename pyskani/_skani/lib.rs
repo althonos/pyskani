@@ -22,50 +22,6 @@ use skani::params::CommandParams;
 use skani::params::MapParams;
 use skani::params::SketchParams;
 
-fn sketch_drafts<'c, C>(
-    params: &SketchParams,
-    name: String,
-    contigs: C,
-    seed: bool,
-) -> PyResult<Sketch>
-where
-    C: IntoIterator<Item = &'c &'c [u8]>,
-{
-    // Adapted for a single genome from `fastx_to_sketches`
-    let mut is_valid = false;
-    let mut contig_count = 0;
-    let mut sketch = skani::types::Sketch::new(
-        params.marker_c,
-        params.c,
-        params.k,
-        name.clone(), // file name
-        params.use_aa,
-    );
-
-    for (i, contig) in contigs.into_iter().enumerate() {
-        if contig.len() >= skani::params::MIN_LENGTH_CONTIG {
-            sketch.contigs.push(format!("{}_{}", &name, i));
-            sketch
-                .contig_lengths
-                .push(contig.len() as skani::types::GnPosition);
-            sketch.total_sequence_length += contig.len();
-            if params.use_aa {
-                unimplemented!()
-            } else {
-                skani::seeding::fmh_seeds(&contig, params, contig_count, &mut sketch, seed);
-            }
-            contig_count += 1;
-            is_valid = true;
-        }
-    }
-
-    if is_valid && sketch.total_sequence_length > 20_000_000 {
-        sketch.repetitive_kmers = skani::seeding::get_repetitive_kmers(&sketch.kmer_seeds_k);
-    }
-
-    Ok(Sketch { sketch })
-}
-
 /// A single hit found when querying a `~pyskani.Database` with a genome.
 ///
 /// Attributes:
@@ -174,6 +130,52 @@ pub struct Database {
     markers: Vec<Sketch>,
 }
 
+impl Database {
+    fn sketch<'c, C>(
+        &self,
+        name: String,
+        contigs: C,
+        seed: bool,
+    ) -> PyResult<Sketch>
+    where
+        C: IntoIterator<Item = &'c &'c [u8]>,
+    {
+        // Adapted for a single genome from `fastx_to_sketches`
+        let mut is_valid = false;
+        let mut contig_count = 0;
+        let mut sketch = skani::types::Sketch::new(
+            self.params.marker_c,
+            self.params.c,
+            self.params.k,
+            name.clone(), // file name
+            self.params.use_aa,
+        );
+
+        for (i, contig) in contigs.into_iter().enumerate() {
+            if contig.len() >= skani::params::MIN_LENGTH_CONTIG {
+                sketch.contigs.push(format!("{}_{}", &name, i));
+                sketch
+                    .contig_lengths
+                    .push(contig.len() as skani::types::GnPosition);
+                sketch.total_sequence_length += contig.len();
+                if self.params.use_aa {
+                    unimplemented!()
+                } else {
+                    skani::seeding::fmh_seeds(&contig, &self.params, contig_count, &mut sketch, seed);
+                }
+                contig_count += 1;
+                is_valid = true;
+            }
+        }
+
+        if is_valid && sketch.total_sequence_length > 20_000_000 {
+            sketch.repetitive_kmers = skani::seeding::get_repetitive_kmers(&sketch.kmer_seeds_k);
+        }
+
+        Ok(Sketch { sketch })
+    }
+}
+
 #[pymethods]
 impl Database {
     // TODO: Change `path` to support `os.PathLike` objects as well.
@@ -191,7 +193,7 @@ impl Database {
     ///     `ValueError`: When the sketches could not be deserialized.
     ///
     #[classmethod]
-    fn load(cls: &PyType, path: &str) -> PyResult<Self> {
+    pub fn load(cls: &PyType, path: &str) -> PyResult<Self> {
         let folder = std::path::Path::new(path);
 
         // load marker sketches
@@ -250,7 +252,6 @@ impl Database {
         })
     }
 
-
     #[new]
     #[pyo3(signature = (marker_c=1000, c=125, k=15, amino_acid=false))]
     pub fn __init__(
@@ -292,7 +293,7 @@ impl Database {
     /// 
     #[pyo3(signature = (name, contigs, seed=true))]
     pub fn add_draft(&mut self, name: String, contigs: Vec<&[u8]>, seed: bool) -> PyResult<()> {
-        let sketch = sketch_drafts(&self.params, name, &contigs, seed)?;
+        let sketch = self.sketch(name, &contigs, seed)?;
         self.markers.push(skani::types::Sketch::get_markers_only(&sketch.sketch).into());
         self.sketches.push(sketch);
         Ok(())
@@ -334,7 +335,7 @@ impl Database {
         contigs: Vec<&[u8]>,
         seed: bool,
     ) -> PyResult<Vec<Hit>> {
-        let query = sketch_drafts(&self.params, name, &contigs, seed)?;
+        let query = self.sketch(name, &contigs, seed)?;
         let command_params = CommandParams {
             screen: false,
             mode: skani::params::Mode::Search,
