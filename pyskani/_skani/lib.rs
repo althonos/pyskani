@@ -66,6 +66,17 @@ where
     Ok(Sketch { sketch })
 }
 
+/// A single hit found when querying a `~pyskani.Database` with a genome.
+///
+/// Attributes:
+///     identity (`float`): 
+///     query_name (`str`): The name of the query genome.
+///     reference_name (`str`): The name of the reference genome.
+///     query_fraction (`float`): The fraction of the query sequence
+///         covered by the alignment.
+///     reference_fraction (`float`): The fraction of the reference 
+///         sequence covered by the alignment.
+///
 #[pyclass]
 pub struct Hit {
     result: skani::types::AniEstResult,
@@ -73,26 +84,31 @@ pub struct Hit {
 
 #[pymethods]
 impl Hit {
+    /// `float`: The average nucleotide identity between the two genomes.
     #[getter]
     pub fn get_identity(&self) -> f32 {
         self.result.ani
     }
 
+    /// `str`: The name of the query genome.
     #[getter]
     pub fn get_query_name(&self) -> &str {
         self.result.query_file.as_str()
     }
-
+    
+    /// `float`: The fraction of the query genome covered by the alignment.
     #[getter]
     pub fn get_query_fraction(&self) -> f32 {
         self.result.align_fraction_query
     }
 
+    /// `str`: The name of the reference genome.
     #[getter]
     pub fn get_reference_name(&self) -> &str {
         self.result.ref_file.as_str()
     }
 
+    /// `float`: The fraction of the reference genome covered by the alignment.
     #[getter]
     pub fn get_reference_fraction(&self) -> f32 {
         self.result.align_fraction_ref
@@ -152,77 +168,23 @@ impl From<skani::types::Sketch> for Sketch {
 }
 
 #[pyclass]
-pub struct Sketcher {
-    params: SketchParams,
-    sketches: Vec<Sketch>,
-}
-
-#[pymethods]
-impl Sketcher {
-    #[new]
-    #[pyo3(signature = (marker_c=1000, c=125, k=15, amino_acid=false))]
-    pub fn __init__(
-        marker_c: usize,
-        c: usize,
-        k: usize,
-        amino_acid: bool,
-    ) -> PyResult<PyClassInitializer<Self>> {
-        let sketcher = Self {
-            sketches: Vec::new(),
-            params: SketchParams::new(marker_c, c, k, false, amino_acid),
-        };
-        Ok(sketcher.into())
-    }
-
-    #[pyo3(signature = (name, contigs, seed=true))]
-    pub fn add_draft<'s>(&mut self, name: String, contigs: Vec<&[u8]>, seed: bool) -> PyResult<()> {
-        let sketch = sketch_drafts(&self.params, name, &contigs, seed)?;
-        self.sketches.push(sketch);
-        Ok(())
-    }
-
-    pub fn index(&mut self) -> PyResult<Mapper> {
-        let sketches = std::mem::take(&mut self.sketches);
-        let markers = sketches
-            .iter()
-            .map(|s| skani::types::Sketch::get_markers_only(&s.sketch).into())
-            .collect::<Vec<Sketch>>();
-        Ok(Mapper {
-            markers,
-            sketches,
-            params: SketchParams {
-                // FIXME: use clone when supported
-                c: self.params.c,
-                k: self.params.k,
-                marker_c: self.params.marker_c,
-                use_syncs: self.params.use_syncs,
-                use_aa: self.params.use_aa,
-                acgt_to_aa_encoding: self.params.acgt_to_aa_encoding.clone(),
-                acgt_to_aa_letters: self.params.acgt_to_aa_letters.clone(),
-                orf_size: self.params.orf_size.clone(),
-            },
-        })
-    }
-}
-
-#[pyclass]
-pub struct Mapper {
+pub struct Database {
     params: SketchParams,
     sketches: Vec<Sketch>,
     markers: Vec<Sketch>,
 }
 
 #[pymethods]
-impl Mapper {
+impl Database {
     // TODO: Change `path` to support `os.PathLike` objects as well.
-    /// Load a mapper from a folder containing sketches.
+    /// Load a database from a folder containing sketches.
     ///
     /// Arguments:
     ///     path (`str`): The path to the folder containing the sketched 
     ///         sequences. 
     ///
     /// Returns:
-    ///     `~pyskani.Mapper`: A mapper with all sketches loaded in memory.
+    ///     `~pyskani.Database`: A database with all sketches loaded in memory.
     ///
     /// Raises:
     ///     `OSError`: When the files from the folder could not be opened.
@@ -288,6 +250,63 @@ impl Mapper {
         })
     }
 
+
+    #[new]
+    #[pyo3(signature = (marker_c=1000, c=125, k=15, amino_acid=false))]
+    pub fn __init__(
+        marker_c: usize,
+        c: usize,
+        k: usize,
+        amino_acid: bool,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let sketcher = Self {
+            sketches: Vec::new(),
+            markers: Vec::new(),
+            params: SketchParams::new(marker_c, c, k, false, amino_acid),
+        };
+        Ok(sketcher.into())
+    }
+
+    /// Add a reference genome to the database.
+    ///
+    /// This method is a shortcut for `Database.add_draft` when a genome is
+    /// complete (i.e. only contains a single contig).
+    ///
+    /// Arguments:
+    ///     name (`object`): The name of the reference genome to add.
+    ///     sequence (`bytes`): The sequence of the reference genome. 
+    /// 
+    #[pyo3(signature = (name, sequence, seed=true))]
+    pub fn add_genome(&mut self, name: String, sequence: &[u8], seed: bool) -> PyResult<()> {
+        self.add_draft(name, vec![sequence], seed)
+    }
+
+    /// Add a reference draft genome to the database.
+    ///
+    /// Using this method is fine even when the genome has a single contig,
+    /// although `Database.add_genome` is easier to use in that case.
+    ///
+    /// Arguments:
+    ///     name (`object`): The name of the reference genome to add.
+    ///     contigs (`list` of `bytes`): The contigs of the reference genome. 
+    /// 
+    #[pyo3(signature = (name, contigs, seed=true))]
+    pub fn add_draft(&mut self, name: String, contigs: Vec<&[u8]>, seed: bool) -> PyResult<()> {
+        let sketch = sketch_drafts(&self.params, name, &contigs, seed)?;
+        self.markers.push(skani::types::Sketch::get_markers_only(&sketch.sketch).into());
+        self.sketches.push(sketch);
+        Ok(())
+    }
+
+    /// Query the database with a complete genome.
+    ///      
+    /// Arguments:
+    ///     name (`str`): The name of the query genome.
+    ///     sequence (`bytes`): The sequence of the query genome.
+    ///   
+    ///   Returns:
+    ///       `list` of `~pyskani.Hit`: The hits found for the query.
+    ///   
     #[pyo3(signature = (name, sequence, seed=true))]
     pub fn query_genome<'s>(
         &self,
@@ -298,6 +317,16 @@ impl Mapper {
         self.query_draft(name, vec![sequence], seed)
     }
 
+    /// Query the database with a draft genome.
+    ///      
+    /// Arguments:
+    ///     name (`str`): The name of the query genome.
+    ///     contigs (`list` of `bytes`): The sequence of the contigs from
+    ///         the query genome.
+    ///   
+    ///   Returns:
+    ///       `list` of `~pyskani.Hit`: The hits found for the query.
+    ///   
     #[pyo3(signature = (name, contigs, seed=true))]
     pub fn query_draft<'s>(
         &self,
@@ -356,6 +385,7 @@ impl Mapper {
     }
 }
 
+
 #[pymodule]
 #[pyo3(name = "_skani")]
 pub fn init(py: Python, m: &PyModule) -> PyResult<()> {
@@ -364,9 +394,8 @@ pub fn init(py: Python, m: &PyModule) -> PyResult<()> {
     m.add("__author__", env!("CARGO_PKG_AUTHORS").replace(':', "\n"))?;
     // m.add("__build__", pyo3_built!(py, built))?;
 
-    m.add_class::<Sketcher>()?;
+    m.add_class::<Database>()?;
     m.add_class::<Sketch>()?;
-    m.add_class::<Mapper>()?;
 
     Ok(())
 }

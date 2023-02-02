@@ -54,12 +54,9 @@ $ conda install -c bioconda pyskani
 
 ## 💡 Example
 
-The API is similar to the [`pyfastani`](https://github.com/althonos/pyfastani)
-API on purpose.
-
 The following snippets show how to compute the ANI between two genomes,
 with the reference being a draft genome.  For one-to-many or many-to-many 
-searches, simply add additional references with `sketcher.add_draft` before 
+searches, simply add additional references with `database.add_draft` before 
 indexing.
 
 
@@ -74,19 +71,15 @@ instead of `bytes(record.seq)`.
 import pyskani
 import Bio.SeqIO
 
-sketcher = pyskani.Sketcher()
+database = pyskani.Database()
 
-# add a single draft genome to the sketcher, and index it
+# add a single draft genome to the database
 ref = list(Bio.SeqIO.parse("vendor/skani/test_files/e.coli-o157.fasta", "fasta"))
-sketcher.add_draft("E. coli O157", [bytes(record.seq) for record in ref])
+database.add_draft("E. coli O157", [bytes(record.seq) for record in ref])
 
-# index the sketcher and get a mapper
-mapper = sketcher.index()
-
-# read the query and query the mapper
+# read the query and query the database
 query = Bio.SeqIO.read("vendor/skani/test_files/e.coli-K12.fasta", "fasta")
-hits = mapper.query_genome("K12", bytes(query.seq))
-
+hits = database.query_genome("E.coli K12", bytes(query.seq))
 for hit in hits:
     print(hit.query_name, hit.reference_name, hit.identity, hit.query_fraction, hit.reference_fraction)
 ```
@@ -102,17 +95,15 @@ shows the values as byte strings by default. To make them readable as
 import pyskani
 import skbio.io
 
-sketcher = pyskani.Sketcher()
+database = pyskani.Database()
 
+# add a single draft genome to the database
 ref = list(skbio.io.read("vendor/skani/test_files/e.coli-o157.fasta", "fasta"))
-sketcher.add_draft("E. coli O157", [seq.values.view('B') for seq in ref])
-
-mapper = sketcher.index()
+database.add_draft("E. coli O157", [seq.values.view('B')for seq in ref])
 
 # read the query and query the mapper
 query = next(skbio.io.read("vendor/skani/test_files/e.coli-K12.fasta", "fasta"))
-hits = mapper.query_genome("K12", query.values.view('B'))
-
+hits = database.query_genome("E.coli K12", query.values.view('B'))
 for hit in hits:
     print(hit.query_name, hit.reference_name, hit.identity, hit.query_fraction, hit.reference_fraction)
 ```
