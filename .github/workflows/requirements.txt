@@ -1,0 +1,8 @@
+setuptools >=41.0
+wheel
+setuptools-rust
+requests
+auditwheel
+coverage ~=5.0
+build
+sphinx

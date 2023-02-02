@@ -1,0 +1,147 @@
+name: Test
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  test_linux:
+    name: Test (Linux)
+    runs-on: ubuntu-latest
+    env:
+      OS: Linux
+    strategy:
+      matrix:
+        include:
+        - python-version: 3.7
+          python-release: v3.7
+          python-impl: CPython
+        - python-version: 3.8
+          python-release: v3.8
+          python-impl: CPython
+        - python-version: 3.9
+          python-release: v3.9
+          python-impl: CPython
+        - python-version: "3.10"
+          python-release: v3.10
+          python-impl: CPython
+        - python-version: "3.11"
+          python-release: v3.11
+          python-impl: CPython
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v1
+    - name: Setup Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Setup Rust nightly
+      uses: ATiltedTree/setup-rust@v1
+      with:
+        rust-version: nightly
+    - name: Update CI requirements
+      run: python -m pip install -U -r .github/workflows/requirements.txt
+    - name: Build extension
+      run: python setup.py build_ext --inplace --debug
+    - name: Test extension with coverage
+      run: python -m coverage run -m unittest discover -vv
+    - name: Export coverage reports
+      run: python -m coverage xml
+    - name: Upload coverage statistics
+      uses: codecov/codecov-action@v1
+      with:
+          flags: MacOS,${{ matrix.python-impl}},${{ matrix.python-release }}
+
+  test_macos:
+    name: Test (MacOS)
+    runs-on: macos-latest
+    env:
+      OS: MacOS
+    strategy:
+      matrix:
+        include:
+        - python-version: 3.7
+          python-release: v3.7
+          python-impl: CPython
+        - python-version: 3.8
+          python-release: v3.8
+          python-impl: CPython
+        - python-version: 3.9
+          python-release: v3.9
+          python-impl: CPython
+        - python-version: "3.10"
+          python-release: v3.10
+          python-impl: CPython
+        - python-version: "3.11"
+          python-release: v3.11
+          python-impl: CPython
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v1
+    - name: Setup Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Setup Rust nightly
+      uses: ATiltedTree/setup-rust@v1
+      with:
+        rust-version: nightly
+    - name: Update CI requirements
+      run: python -m pip install -U -r .github/workflows/requirements.txt
+    - name: Build extension
+      run: python setup.py build_ext --inplace --debug
+    - name: Test extension with coverage
+      run: python -m coverage run -m unittest discover -vv
+    - name: Export coverage reports
+      run: python -m coverage xml
+    - name: Upload coverage statistics
+      uses: codecov/codecov-action@v1
+      with:
+          flags: MacOS,${{ matrix.python-impl}},${{ matrix.python-release }}
+
+  test_win32:
+    name: Test (Windows)
+    runs-on: windows-latest
+    env:
+      OS: Windows
+    strategy:
+      matrix:
+        include:
+        - python-version: 3.7
+          python-release: v3.7
+          python-impl: CPython
+        - python-version: 3.8
+          python-release: v3.8
+          python-impl: CPython
+        - python-version: 3.9
+          python-release: v3.9
+          python-impl: CPython
+        - python-version: "3.10"
+          python-release: v3.10
+          python-impl: CPython
+        - python-version: "3.11"
+          python-release: v3.11
+          python-impl: CPython
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v1
+    - name: Setup Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Setup Rust nightly
+      uses: ATiltedTree/setup-rust@v1
+      with:
+        rust-version: nightly
+    - name: Update CI requirements
+      run: python -m pip install -U -r .github/workflows/requirements.txt
+    - name: Build extension
+      run: python setup.py build_ext --inplace --debug
+    - name: Test extension with coverage
+      run: python -m coverage run -m unittest discover -vv
+    - name: Export coverage reports
+      run: python -m coverage xml
+    - name: Upload coverage statistics
+      uses: codecov/codecov-action@v1
+      with:
+          flags: Windows,${{ matrix.python-impl}},${{ matrix.python-release }}
