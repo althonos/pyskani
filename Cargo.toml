@@ -1,0 +1,27 @@
+[package]
+name = "pyskani"
+version = "0.0.1"
+authors = ["Martin Larralde <martin.larralde@embl.de>"]
+license = "MIT"
+publish = false
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "pyskani/_skani/lib.rs"
+
+[dependencies]
+bincode = "*"
+rayon = "*"
+
+[dependencies.pyo3]
+version = "0.18.0"
+
+[dependencies.skani]
+version = "0.0.1"
+path = "vendor/skani"
+
+[features]
+default = []
+extension-module = ["pyo3/extension-module"]
+nightly = ["pyo3/nightly"]
