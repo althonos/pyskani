@@ -88,7 +88,7 @@ query = Bio.SeqIO.read("vendor/skani/test_files/e.coli-K12.fasta", "fasta")
 hits = mapper.query_genome("K12", bytes(query.seq))
 
 for hit in hits:
-    print("E. coli K12 MG1655", hit.name, hit.identity, hit.matches, hit.fragments)
+    print(hit.query_name, hit.reference_name, hit.identity, hit.query_fraction, hit.reference_fraction)
 ```
 
 ### 🧪 [Scikit-bio](https://github.com/biocore/scikit-bio)
@@ -114,7 +114,7 @@ query = next(skbio.io.read("vendor/skani/test_files/e.coli-K12.fasta", "fasta"))
 hits = mapper.query_genome("K12", query.values.view('B'))
 
 for hit in hits:
-    print("E. coli K12 MG1655", hit.name, hit.identity, hit.matches, hit.fragments)
+    print(hit.query_name, hit.reference_name, hit.identity, hit.query_fraction, hit.reference_fraction)
 ```
 
 
