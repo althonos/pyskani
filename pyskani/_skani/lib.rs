@@ -362,7 +362,7 @@ impl Database {
         exc_value: &PyAny,
         traceback: &PyAny,
     ) -> PyResult<bool> {
-        self.close()?;
+        self.flush()?;
         Ok(false)
     }
 
@@ -536,12 +536,13 @@ impl Database {
         Ok(())
     }
 
-    /// Close the database.
+    /// Flush the database.
     ///
     /// This does nothing for a database loaded in memory. For a database
-    /// backed by a filesystem, this will save the markers into a
-    /// ``markers.bin`` file.
-    pub fn close(&self) -> PyResult<()> {
+    /// stored in a folder, this will save the markers into a file named
+    /// ``markers.bin``.
+    ///
+    pub fn flush(&self) -> PyResult<()> {
         match &self.sketches {
             DatabaseStorage::Memory(_) => Ok(()),
             DatabaseStorage::Folder(folder) => {
@@ -566,12 +567,3 @@ pub fn init(_py: Python, m: &PyModule) -> PyResult<()> {
 
     Ok(())
 }
-
-// #[cfg(test)]
-// mod tests {
-//     #[test]
-//     fn it_works() {
-//         let result = 2 + 2;
-//         assert_eq!(result, 4);
-//     }
-// }
