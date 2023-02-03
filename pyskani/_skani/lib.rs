@@ -2,27 +2,31 @@ extern crate bincode;
 extern crate pyo3;
 extern crate rayon;
 extern crate skani;
+extern crate supercow;
 
 mod hit;
 mod sketch;
 
-use std::collections::HashSet;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs::File;
-use std::path::PathBuf;
 use std::io::BufReader;
+use std::path::Path;
+use std::path::PathBuf;
 
-use pyo3::exceptions::PyRuntimeError;
-use pyo3::exceptions::PyValueError;
+use pyo3::buffer::PyBuffer;
+use pyo3::exceptions::PyFileExistsError;
 use pyo3::exceptions::PyKeyError;
 use pyo3::exceptions::PyOSError;
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::exceptions::PyUnicodeError;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::PyType;
 use pyo3::types::PyTuple;
-use pyo3::buffer::PyBuffer;
+use pyo3::types::PyType;
 use skani::params::CommandParams;
 use skani::params::SketchParams;
+use supercow::Supercow;
 
 use self::hit::Hit;
 use self::sketch::Sketch;
@@ -33,7 +37,7 @@ enum DatabaseStorage {
 }
 
 impl DatabaseStorage {
-    pub fn store(&mut self, sketch: Sketch, params: &SketchParams) -> PyResult<()> {
+    fn store(&mut self, sketch: Sketch, params: &SketchParams) -> PyResult<()> {
         match self {
             DatabaseStorage::Memory(memory) => {
                 let name = sketch.as_ref().file_name.clone();
@@ -44,11 +48,13 @@ impl DatabaseStorage {
                 let sketch_path = folder.join(format!("{}.sketch", &sketch.as_ref().file_name));
                 let writer = match File::create(&sketch_path) {
                     Ok(writer) => writer,
-                    Err(err) => return if let Some(code) = err.raw_os_error() {
-                        let msg = format!("Failed to create {}", sketch_path.display());
-                        Err(PyOSError::new_err((code, msg)))
-                    } else {
-                        Err(PyRuntimeError::new_err(err.to_string()))
+                    Err(err) => {
+                        return if let Some(code) = err.raw_os_error() {
+                            let msg = format!("Failed to create {}", sketch_path.display());
+                            Err(PyOSError::new_err((code, msg)))
+                        } else {
+                            Err(PyRuntimeError::new_err(err.to_string()))
+                        }
                     }
                 };
                 match bincode::serialize_into(writer, &(params, sketch.as_ref())) {
@@ -59,13 +65,37 @@ impl DatabaseStorage {
         }
     }
 
-    pub fn load(&self, name: &str) -> PyResult<&Sketch> {
+    fn load<'db>(&self, name: &str) -> PyResult<Supercow<Sketch>> {
         match self {
-            DatabaseStorage::Memory(memory) => {
-                memory.get(name).ok_or_else(|| PyKeyError::new_err(name.to_string()))
-            }
+            DatabaseStorage::Memory(memory) => match memory.get(name) {
+                Some(sketch) => Ok(Supercow::borrowed(sketch)),
+                None => Err(PyKeyError::new_err(name.to_string())),
+            },
             DatabaseStorage::Folder(path) => {
-                unimplemented!()
+                let entry_path = path.join(format!("{}.sketch", name));
+                let reader = match File::open(&entry_path).map(BufReader::new) {
+                    Ok(reader) => reader,
+                    Err(err) => {
+                        return if let Some(code) = err.raw_os_error() {
+                            let msg = format!("Failed to open {}", entry_path.display());
+                            Err(PyOSError::new_err((code, msg)))
+                        } else {
+                            Err(PyRuntimeError::new_err(err.to_string()))
+                        }
+                    }
+                };
+                match bincode::deserialize_from::<_, (SketchParams, skani::types::Sketch)>(reader) {
+                    Err(err) => Err(PyValueError::new_err(err.to_string())),
+                    Ok((params, raw_sketch)) => {
+                        let name = Path::new(&raw_sketch.file_name)
+                            .file_name()
+                            .unwrap()
+                            .to_os_string()
+                            .into_string()
+                            .unwrap(); // FIXME
+                        Ok(Supercow::owned(Sketch::from(raw_sketch)))
+                    }
+                }
             }
         }
     }
@@ -79,12 +109,7 @@ pub struct Database {
 }
 
 impl Database {
-    fn _sketch<'c, C>(
-        &self,
-        name: String,
-        contigs: C,
-        seed: bool,
-    ) -> PyResult<Sketch>
+    fn _sketch<'c, C>(&self, name: String, contigs: C, seed: bool) -> PyResult<Sketch>
     where
         C: IntoIterator<Item = &'c [u8]>,
     {
@@ -109,7 +134,13 @@ impl Database {
                 if self.params.use_aa {
                     unimplemented!()
                 } else {
-                    skani::seeding::fmh_seeds(&contig, &self.params, contig_count, &mut sketch, seed);
+                    skani::seeding::fmh_seeds(
+                        &contig,
+                        &self.params,
+                        contig_count,
+                        &mut sketch,
+                        seed,
+                    );
                 }
                 contig_count += 1;
                 is_valid = true;
@@ -122,6 +153,49 @@ impl Database {
 
         Ok(Sketch::from(sketch))
     }
+
+    fn _save_markers<P>(&self, path: P) -> PyResult<()>
+    where
+        P: AsRef<Path>,
+    {
+        let writer = match File::create(&path) {
+            Ok(writer) => writer,
+            Err(err) => {
+                return if let Some(code) = err.raw_os_error() {
+                    let msg = format!("Failed to create {}", path.as_ref().display());
+                    Err(PyOSError::new_err((code, msg)))
+                } else {
+                    Err(PyRuntimeError::new_err(err.to_string()))
+                }
+            }
+        };
+        let markers = self.markers.iter().map(|s| s.as_ref()).collect::<Vec<_>>();
+        match bincode::serialize_into(writer, &(&self.params, markers)) {
+            Ok(()) => Ok(()),
+            Err(err) => return Err(PyValueError::new_err(err.to_string())),
+        }
+    }
+
+    fn _save_sketch<P>(&self, path: P, sketch: &Sketch) -> PyResult<()>
+    where
+        P: AsRef<Path>,
+    {
+        let writer = match File::create(path.as_ref()) {
+            Ok(writer) => writer,
+            Err(err) => {
+                return if let Some(code) = err.raw_os_error() {
+                    let msg = format!("Failed to create {}", path.as_ref().display());
+                    Err(PyOSError::new_err((code, msg)))
+                } else {
+                    Err(PyRuntimeError::new_err(err.to_string()))
+                }
+            }
+        };
+        match bincode::serialize_into(writer, &(&self.params, sketch.as_ref())) {
+            Ok(()) => Ok(()),
+            Err(err) => return Err(PyValueError::new_err(err.to_string())),
+        }
+    }
 }
 
 #[pymethods]
@@ -129,12 +203,12 @@ impl Database {
     /// Load a database from a folder containing sketches.
     ///
     /// The sketches will be loaded in memory to speed-up querying. To
-    /// reduce memory consumption and load sketches lazily from the folder, 
+    /// reduce memory consumption and load sketches lazily from the folder,
     /// use `Database.open`.
     ///
     /// Arguments:
-    ///     path (`str`): The path to the folder containing the sketched 
-    ///         sequences. 
+    ///     path (`str`): The path to the folder containing the sketched
+    ///         sequences.
     ///
     /// Returns:
     ///     `~pyskani.Database`: A database with all sketches loaded in memory.
@@ -156,7 +230,7 @@ impl Database {
             .filter_map(Result::ok)
             .filter(|entry| {
                 let filename = entry.file_name();
-                let filepath: &std::path::Path = filename.as_ref();
+                let filepath: &Path = filename.as_ref();
                 match filepath.extension() {
                     None => false,
                     Some(ext) => ext == "sketch",
@@ -166,19 +240,26 @@ impl Database {
             let entry_path = entry.path();
             let reader = match File::open(&entry_path).map(BufReader::new) {
                 Ok(reader) => reader,
-                Err(err) => return if let Some(code) = err.raw_os_error() {
-                    let msg = format!("Failed to open {}", entry_path.display());
-                    Err(PyOSError::new_err((code, msg)))
-                } else {
-                    Err(PyRuntimeError::new_err(err.to_string()))
+                Err(err) => {
+                    return if let Some(code) = err.raw_os_error() {
+                        let msg = format!("Failed to open {}", entry_path.display());
+                        Err(PyOSError::new_err((code, msg)))
+                    } else {
+                        Err(PyRuntimeError::new_err(err.to_string()))
+                    }
                 }
             };
             match bincode::deserialize_from::<_, (SketchParams, skani::types::Sketch)>(reader) {
                 Err(err) => return Err(PyValueError::new_err(err.to_string())),
                 Ok((params, raw_sketch)) => {
-                    let name = raw_sketch.file_name.clone();
+                    let name = Path::new(&raw_sketch.file_name)
+                        .file_name()
+                        .unwrap()
+                        .to_os_string()
+                        .into_string()
+                        .unwrap(); // FIXME
                     sketches.insert(name, Sketch::from(raw_sketch));
-                },
+                }
             };
         }
         db.sketches = DatabaseStorage::Memory(sketches);
@@ -186,7 +267,7 @@ impl Database {
     }
 
     // TODO: Change `path` to support `os.PathLike` objects as well.
-    
+
     /// Open a database from a folder containing sketches.
     ///
     /// The marker sketches will be loaded in memory, but the sketches will
@@ -196,14 +277,16 @@ impl Database {
     #[allow(unused)]
     pub fn open(cls: &PyType, path: &str) -> PyResult<Self> {
         // load marker sketches
-        let markers_path = std::path::Path::new(path).join("markers.bin");
+        let markers_path = Path::new(path).join("markers.bin");
         let reader = match File::open(&markers_path).map(BufReader::new) {
             Ok(reader) => reader,
-            Err(err) => return if let Some(code) = err.raw_os_error() {
-                let msg = format!("Failed to open {}", markers_path.display());
-                Err(PyOSError::new_err((code, msg)))
-            } else {
-                Err(PyRuntimeError::new_err(err.to_string()))
+            Err(err) => {
+                return if let Some(code) = err.raw_os_error() {
+                    let msg = format!("Failed to open {}", markers_path.display());
+                    Err(PyOSError::new_err((code, msg)))
+                } else {
+                    Err(PyRuntimeError::new_err(err.to_string()))
+                }
             }
         };
         let (params, raw_markers) =
@@ -243,6 +326,20 @@ impl Database {
         Ok(sketcher.into())
     }
 
+    pub fn __enter__(slf: PyRef<Self>) -> PyRef<Self> {
+        slf
+    }
+
+    pub fn __exit__(
+        &self,
+        exc_type: &PyAny,
+        exc_value: &PyAny,
+        traceback: &PyAny,
+    ) -> PyResult<bool> {
+        self.close()?;
+        Ok(false)
+    }
+
     /// `pathlib.Path` or `None`: The path where sketches are stored.
     #[getter]
     pub fn get_path(&self, py: Python) -> PyResult<PyObject> {
@@ -263,9 +360,9 @@ impl Database {
     ///
     /// Arguments:
     ///     name (`object`): The name of the reference genome to add.
-    ///     contigs (`bytes`, `bytearray` or `memoryview`): The contigs of the 
-    ///         reference genome. 
-    /// 
+    ///     contigs (`bytes`, `bytearray` or `memoryview`): The contigs of the
+    ///         reference genome.
+    ///
     #[pyo3(signature = (name, *contigs, seed=true))]
     pub fn sketch(&mut self, name: String, contigs: &PyTuple, seed: bool) -> PyResult<()> {
         let py = contigs.py();
@@ -276,13 +373,12 @@ impl Database {
         let bytes = buffers
             .into_iter()
             .map(|buffer| buffer.to_vec(py))
-            .collect::<PyResult< Vec< Vec<u8> >>>()?;
-        let views = bytes
-            .iter()
-            .map(|x| x.as_ref());
+            .collect::<PyResult<Vec<Vec<u8>>>>()?;
+        let views = bytes.iter().map(|x| x.as_ref());
 
         let sketch = self._sketch(name, views, seed)?;
-        self.markers.push(skani::types::Sketch::get_markers_only(sketch.as_ref()).into());
+        self.markers
+            .push(skani::types::Sketch::get_markers_only(sketch.as_ref()).into());
         self.sketches.store(sketch, &self.params);
         Ok(())
     }
@@ -291,7 +387,7 @@ impl Database {
     ///      
     /// Arguments:
     ///     name (`str`): The name of the query genome.
-    ///     contigs (`bytes`, `bytearray` or `memoryview`): The contigs of the 
+    ///     contigs (`bytes`, `bytearray` or `memoryview`): The contigs of the
     ///         query genome.  
     ///   
     ///   Returns:
@@ -307,10 +403,8 @@ impl Database {
         let bytes = buffers
             .into_iter()
             .map(|buffer| buffer.to_vec(py))
-            .collect::<PyResult< Vec< Vec<u8> >>>()?;
-        let views = bytes
-            .iter()
-            .map(|x| x.as_ref());
+            .collect::<PyResult<Vec<Vec<u8>>>>()?;
+        let views = bytes.iter().map(|x| x.as_ref());
 
         let query = self._sketch(name, views, seed)?;
         let command_params = CommandParams {
@@ -341,13 +435,19 @@ impl Database {
                 marker.as_ref(),
                 command_params.screen_val,
             ) {
-                shortlist.insert(&marker.as_ref().file_name);
+                let name = Path::new(&marker.as_ref().file_name)
+                    .file_name()
+                    .unwrap()
+                    .to_os_string()
+                    .into_string()
+                    .unwrap();
+                shortlist.insert(name);
             }
         }
 
         let mut hits = Vec::new();
         for name in shortlist.iter() {
-            let reference = &self.sketches.load(name)?;
+            let reference = &*self.sketches.load(&name)?;
             let map_params = skani::chain::map_params_from_sketch(
                 reference.as_ref(),
                 self.params.use_aa,
@@ -360,6 +460,69 @@ impl Database {
         }
 
         Ok(hits)
+    }
+
+    /// Save the database to the given path.
+    #[pyo3(signature = (path, overwrite=false))]
+    pub fn save(&self, path: &str, overwrite: bool) -> PyResult<()> {
+        // Create folder if it doesn't exist
+        let folder = Path::new(path);
+        if !folder.exists() {
+            if let Err(err) = std::fs::create_dir_all(folder) {
+                return if let Some(code) = err.raw_os_error() {
+                    let msg = format!("Failed to create {}", folder.display());
+                    Err(PyOSError::new_err((code, msg)))
+                } else {
+                    Err(PyRuntimeError::new_err(err.to_string()))
+                };
+            }
+        }
+
+        // Serialize the markers
+        let markers_path = folder.join("markers.bin");
+        if !overwrite && markers_path.exists() {
+            return Err(PyFileExistsError::new_err(
+                markers_path.display().to_string(),
+            ));
+        }
+        self._save_markers(markers_path)?;
+
+        // Serialize the sketches
+        for filename in self
+            .markers
+            .iter()
+            .map(|marker| Path::new(&marker.as_ref().file_name))
+        {
+            let name = filename
+                .file_name()
+                .unwrap()
+                .to_os_string()
+                .into_string()
+                .unwrap(); // FIXME
+            let sketch_path = folder.join(format!("{}.sketch", name));
+            if !overwrite && sketch_path.exists() {
+                return Err(PyFileExistsError::new_err(
+                    sketch_path.display().to_string(),
+                ));
+            }
+            self._save_sketch(sketch_path, &*self.sketches.load(&name)?)?;
+        }
+        Ok(())
+    }
+
+    /// Close the database.
+    ///
+    /// This does nothing for a database loaded in memory. For a database
+    /// backed by a filesystem, this will save the markers into a
+    /// ``markers.bin`` file.
+    pub fn close(&self) -> PyResult<()> {
+        match &self.sketches {
+            DatabaseStorage::Memory(_) => Ok(()),
+            DatabaseStorage::Folder(folder) => {
+                let path = folder.join("markers.bin");
+                self._save_markers(&path)
+            }
+        }
     }
 }
 

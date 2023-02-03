@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 
 #[pyclass]
+#[derive(Clone)]
 pub struct Sketch {
     sketch: skani::types::Sketch,
 }
@@ -34,5 +35,3 @@ impl From<skani::types::Sketch> for Sketch {
         Self { sketch }
     }
 }
-
-

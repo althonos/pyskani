@@ -1,17 +1,17 @@
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyString;
-use pyo3::exceptions::PyValueError;
 use skani::types::AniEstResult;
 
 /// A single hit found when querying a `~pyskani.Database` with a genome.
 ///
 /// Attributes:
-///     identity (`float`): 
+///     identity (`float`):
 ///     query_name (`str`): The name of the query genome.
 ///     reference_name (`str`): The name of the reference genome.
 ///     query_fraction (`float`): The fraction of the query sequence
 ///         covered by the alignment.
-///     reference_fraction (`float`): The fraction of the reference 
+///     reference_fraction (`float`): The fraction of the reference
 ///         sequence covered by the alignment.
 ///
 #[pyclass]
@@ -39,7 +39,10 @@ impl Hit {
             return Err(PyValueError::new_err(msg));
         }
         if reference_fraction < 0.0 || reference_fraction > 1.0 {
-            let msg = format!("Invalid value for `reference_fraction`: {}", reference_fraction);
+            let msg = format!(
+                "Invalid value for `reference_fraction`: {}",
+                reference_fraction
+            );
             return Err(PyValueError::new_err(msg));
         }
 
@@ -78,7 +81,7 @@ impl Hit {
     pub fn get_query_name(&self) -> &str {
         self.result.query_file.as_str()
     }
-    
+
     /// `float`: The fraction of the query genome covered by the alignment.
     #[getter]
     pub fn get_query_fraction(&self) -> f32 {
