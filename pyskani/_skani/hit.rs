@@ -50,6 +50,8 @@ impl Hit {
         result.ani = identity;
         result.align_fraction_query = query_fraction;
         result.align_fraction_ref = reference_fraction;
+        result.query_file = query_name.to_string();
+        result.ref_file = reference_name.to_string();
 
         Ok(Hit::from(result).into())
     }

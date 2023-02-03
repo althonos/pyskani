@@ -19,9 +19,9 @@ use pyo3::exceptions::PyFileExistsError;
 use pyo3::exceptions::PyKeyError;
 use pyo3::exceptions::PyOSError;
 use pyo3::exceptions::PyRuntimeError;
-use pyo3::exceptions::PyUnicodeError;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::types::PyString;
 use pyo3::types::PyTuple;
 use pyo3::types::PyType;
 use skani::params::CommandParams;
@@ -86,15 +86,7 @@ impl DatabaseStorage {
                 };
                 match bincode::deserialize_from::<_, (SketchParams, skani::types::Sketch)>(reader) {
                     Err(err) => Err(PyValueError::new_err(err.to_string())),
-                    Ok((params, raw_sketch)) => {
-                        let name = Path::new(&raw_sketch.file_name)
-                            .file_name()
-                            .unwrap()
-                            .to_os_string()
-                            .into_string()
-                            .unwrap(); // FIXME
-                        Ok(Supercow::owned(Sketch::from(raw_sketch)))
-                    }
+                    Ok((_, raw_sketch)) => Ok(Supercow::owned(Sketch::from(raw_sketch))),
                 }
             }
         }
@@ -207,8 +199,8 @@ impl Database {
     /// use `Database.open`.
     ///
     /// Arguments:
-    ///     path (`str`): The path to the folder containing the sketched
-    ///         sequences.
+    ///     path (`str`, `bytes`, or `os.PathLike`): The path to the
+    ///         folder containing the sketched references.
     ///
     /// Returns:
     ///     `~pyskani.Database`: A database with all sketches loaded in memory.
@@ -219,13 +211,20 @@ impl Database {
     ///
     #[classmethod]
     #[allow(unused)]
-    pub fn load(cls: &PyType, path: &str) -> PyResult<Self> {
+    pub fn load(cls: &PyType, path: &PyAny) -> PyResult<Self> {
+        // obtain Unicode representation of path
+        let py = path.py();
+        let os = py.import(pyo3::intern!(py, "os"))?;
+        let encoded = os
+            .call_method1(pyo3::intern!(py, "fsdecode"), (path,))?
+            .downcast::<PyString>()?;
+
         // load marker genes like in `Database.open`.
-        let mut db = Self::open(cls, path)?;
+        let mut db = Self::open(cls, encoded)?;
 
         // load reference sketches
         let mut sketches = HashMap::new();
-        for entry in std::fs::read_dir(path)
+        for entry in std::fs::read_dir(encoded.to_str()?)
             .unwrap() // safe to unwrap, the `File::open` would have crashed otherwise
             .filter_map(Result::ok)
             .filter(|entry| {
@@ -266,18 +265,35 @@ impl Database {
         Ok(db)
     }
 
-    // TODO: Change `path` to support `os.PathLike` objects as well.
-
     /// Open a database from a folder containing sketches.
     ///
     /// The marker sketches will be loaded in memory, but the sketches will
     /// be loaded only when needed when querying. To speed-up querying by
     /// pre-fetching sketches, use `Database.load`.
+    ///
+    /// Arguments:
+    ///     path (`str`, `bytes`, or `os.PathLike`): The path to the
+    ///         folder containing the sketched references.
+    ///
+    /// Returns:
+    ///     `~pyskani.Database`: A database with only markers loaded in memory.
+    ///
+    /// Raises:
+    ///     `OSError`: When the files from the folder could not be opened.
+    ///     `ValueError`: When the markers could not be deserialized.
+    ///
     #[classmethod]
     #[allow(unused)]
-    pub fn open(cls: &PyType, path: &str) -> PyResult<Self> {
+    pub fn open(cls: &PyType, path: &PyAny) -> PyResult<Self> {
+        // obtain Unicode representation of path
+        let py = path.py();
+        let os = py.import(pyo3::intern!(py, "os"))?;
+        let encoded = os
+            .call_method1(pyo3::intern!(py, "fsdecode"), (path,))?
+            .downcast::<PyString>()?;
+
         // load marker sketches
-        let markers_path = Path::new(path).join("markers.bin");
+        let markers_path = Path::new(encoded.to_str()?).join("markers.bin");
         let reader = match File::open(&markers_path).map(BufReader::new) {
             Ok(reader) => reader,
             Err(err) => {
@@ -301,14 +317,14 @@ impl Database {
         Ok(Self {
             params,
             markers,
-            sketches: DatabaseStorage::Folder(PathBuf::from(path)),
+            sketches: DatabaseStorage::Folder(PathBuf::from(encoded.to_str()?)),
         })
     }
 
     #[new]
     #[pyo3(signature = (path=None, *, marker_c=1000, c=125, k=15, amino_acid=false))]
     pub fn __init__(
-        path: Option<&str>,
+        path: Option<&PyAny>,
         marker_c: usize,
         c: usize,
         k: usize,
@@ -316,7 +332,16 @@ impl Database {
     ) -> PyResult<PyClassInitializer<Self>> {
         let storage = match path {
             None => DatabaseStorage::Memory(HashMap::new()),
-            Some(folder) => DatabaseStorage::Folder(PathBuf::from(folder)),
+            Some(folder) => {
+                // obtain Unicode representation of path
+                let py = folder.py();
+                let os = py.import(pyo3::intern!(py, "os"))?;
+                let encoded = os
+                    .call_method1(pyo3::intern!(py, "fsdecode"), (folder,))?
+                    .downcast::<PyString>()?;
+                // use folder for storage
+                DatabaseStorage::Folder(PathBuf::from(encoded.to_str()?))
+            }
         };
         let sketcher = Self {
             sketches: storage,
@@ -330,6 +355,7 @@ impl Database {
         slf
     }
 
+    #[allow(unused_variables)]
     pub fn __exit__(
         &self,
         exc_type: &PyAny,
@@ -379,7 +405,7 @@ impl Database {
         let sketch = self._sketch(name, views, seed)?;
         self.markers
             .push(skani::types::Sketch::get_markers_only(sketch.as_ref()).into());
-        self.sketches.store(sketch, &self.params);
+        self.sketches.store(sketch, &self.params)?;
         Ok(())
     }
 
@@ -390,8 +416,8 @@ impl Database {
     ///     contigs (`bytes`, `bytearray` or `memoryview`): The contigs of the
     ///         query genome.  
     ///   
-    ///   Returns:
-    ///       `list` of `~pyskani.Hit`: The hits found for the query.
+    /// Returns:
+    ///     `list` of `~pyskani.Hit`: The hits found for the query.
     ///   
     #[pyo3(signature = (name, *contigs, seed=true))]
     pub fn query(&self, name: String, contigs: &PyTuple, seed: bool) -> PyResult<Vec<Hit>> {
