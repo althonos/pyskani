@@ -1,6 +1,6 @@
 # 🐍⛓️🧬 Pyskani [![Stars](https://img.shields.io/github/stars/althonos/pyskani.svg?style=social&maxAge=3600&label=Star)](https://github.com/althonos/pyskani/stargazers)
 
-*[PyO3](https://pyo3.rs/) bindings and Python interface to [skani](https://github.com/bluenote-1577/skani), a method for fast fast genomic identity calculation using sparse chaining.
+*[PyO3](https://pyo3.rs/) bindings and Python interface to [skani](https://github.com/bluenote-1577/skani), a method for fast fast genomic identity calculation using sparse chaining.*
 
 [![Actions](https://img.shields.io/github/actions/workflow/status/althonos/pyskani/test.yml?branch=main&logo=github&style=flat-square&maxAge=300)](https://github.com/althonos/pyskani/actions)
 <!-- [![Coverage](https://img.shields.io/codecov/c/gh/althonos/pyskani/branch/main.svg?style=flat-square&maxAge=3600)](https://codecov.io/gh/althonos/pyskani/)

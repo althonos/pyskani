@@ -3,125 +3,23 @@ extern crate pyo3;
 extern crate rayon;
 extern crate skani;
 
+mod hit;
+mod sketch;
+
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
-use std::path::Path;
-use std::sync::Mutex;
 
-use crate::rayon::iter::ParallelIterator;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::exceptions::PyValueError;
 use pyo3::exceptions::PyOSError;
 use pyo3::prelude::*;
-use pyo3::types::PyList;
-use pyo3::types::PyString;
 use pyo3::types::PyType;
-use rayon::iter::IntoParallelIterator;
 use skani::params::CommandParams;
-use skani::params::MapParams;
 use skani::params::SketchParams;
 
-/// A single hit found when querying a `~pyskani.Database` with a genome.
-///
-/// Attributes:
-///     identity (`float`): 
-///     query_name (`str`): The name of the query genome.
-///     reference_name (`str`): The name of the reference genome.
-///     query_fraction (`float`): The fraction of the query sequence
-///         covered by the alignment.
-///     reference_fraction (`float`): The fraction of the reference 
-///         sequence covered by the alignment.
-///
-#[pyclass]
-pub struct Hit {
-    result: skani::types::AniEstResult,
-}
-
-#[pymethods]
-impl Hit {
-    /// `float`: The average nucleotide identity between the two genomes.
-    #[getter]
-    pub fn get_identity(&self) -> f32 {
-        self.result.ani
-    }
-
-    /// `str`: The name of the query genome.
-    #[getter]
-    pub fn get_query_name(&self) -> &str {
-        self.result.query_file.as_str()
-    }
-    
-    /// `float`: The fraction of the query genome covered by the alignment.
-    #[getter]
-    pub fn get_query_fraction(&self) -> f32 {
-        self.result.align_fraction_query
-    }
-
-    /// `str`: The name of the reference genome.
-    #[getter]
-    pub fn get_reference_name(&self) -> &str {
-        self.result.ref_file.as_str()
-    }
-
-    /// `float`: The fraction of the reference genome covered by the alignment.
-    #[getter]
-    pub fn get_reference_fraction(&self) -> f32 {
-        self.result.align_fraction_ref
-    }
-
-    pub fn __repr__(&self, py: Python) -> PyResult<PyObject> {
-        Python::with_gil(|py| {
-            let template = PyString::new(py, "Hit(identity={!r}, query_name={!r}, query_fraction={!r}, reference_name={!r}, reference_fraction={!r})");
-            let fmt = template.call_method1(
-                pyo3::intern!(py, "format"),
-                (
-                    self.get_identity(),
-                    self.get_query_name(),
-                    self.get_query_fraction(),
-                    self.get_reference_name(),
-                    self.get_reference_fraction(),
-                ),
-            );
-            fmt.map(|r| r.to_object(py))
-        })
-    }
-}
-
-impl From<skani::types::AniEstResult> for Hit {
-    fn from(result: skani::types::AniEstResult) -> Self {
-        Self { result }
-    }
-}
-
-#[pyclass]
-pub struct Sketch {
-    sketch: skani::types::Sketch,
-}
-
-#[pymethods]
-impl Sketch {
-    #[getter]
-    fn get_name(&self) -> &str {
-        &self.sketch.file_name
-    }
-
-    #[getter]
-    fn get_c(&self) -> usize {
-        self.sketch.c
-    }
-
-    #[getter]
-    fn get_amino_acid(&self) -> bool {
-        self.sketch.amino_acid
-    }
-}
-
-impl From<skani::types::Sketch> for Sketch {
-    fn from(sketch: skani::types::Sketch) -> Self {
-        Self { sketch }
-    }
-}
+use self::hit::Hit;
+use self::sketch::Sketch;
 
 #[pyclass]
 pub struct Database {
@@ -172,7 +70,7 @@ impl Database {
             sketch.repetitive_kmers = skani::seeding::get_repetitive_kmers(&sketch.kmer_seeds_k);
         }
 
-        Ok(Sketch { sketch })
+        Ok(Sketch::from(sketch))
     }
 }
 
@@ -193,6 +91,7 @@ impl Database {
     ///     `ValueError`: When the sketches could not be deserialized.
     ///
     #[classmethod]
+    #[allow(unused)]
     pub fn load(cls: &PyType, path: &str) -> PyResult<Self> {
         let folder = std::path::Path::new(path);
 
@@ -294,7 +193,7 @@ impl Database {
     #[pyo3(signature = (name, contigs, seed=true))]
     pub fn add_draft(&mut self, name: String, contigs: Vec<&[u8]>, seed: bool) -> PyResult<()> {
         let sketch = self.sketch(name, &contigs, seed)?;
-        self.markers.push(skani::types::Sketch::get_markers_only(&sketch.sketch).into());
+        self.markers.push(skani::types::Sketch::get_markers_only(sketch.as_ref()).into());
         self.sketches.push(sketch);
         Ok(())
     }
@@ -360,8 +259,8 @@ impl Database {
         let mut ref_to_try = HashSet::new();
         for (index, marker) in self.sketches.iter().enumerate() {
             if skani::chain::check_markers_quickly(
-                &query.sketch,
-                &marker.sketch,
+                query.as_ref(),
+                marker.as_ref(),
                 command_params.screen_val,
             ) {
                 ref_to_try.insert(index);
@@ -372,11 +271,11 @@ impl Database {
         for &index in ref_to_try.iter() {
             let reference = &self.sketches[index];
             let map_params = skani::chain::map_params_from_sketch(
-                &reference.sketch,
+                reference.as_ref(),
                 self.params.use_aa,
                 &command_params,
             );
-            let ani_res = skani::chain::chain_seeds(&reference.sketch, &query.sketch, map_params);
+            let ani_res = skani::chain::chain_seeds(reference.as_ref(), query.as_ref(), map_params);
             if ani_res.ani > 0.5 {
                 hits.push(Hit::from(ani_res));
             }
@@ -386,15 +285,15 @@ impl Database {
     }
 }
 
-
 #[pymodule]
 #[pyo3(name = "_skani")]
-pub fn init(py: Python, m: &PyModule) -> PyResult<()> {
+pub fn init(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add("__package__", "pyskani")?;
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add("__author__", env!("CARGO_PKG_AUTHORS").replace(':', "\n"))?;
     // m.add("__build__", pyo3_built!(py, built))?;
 
+    m.add_class::<Database>()?;
     m.add_class::<Database>()?;
     m.add_class::<Sketch>()?;
 
