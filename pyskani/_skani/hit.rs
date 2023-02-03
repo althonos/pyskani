@@ -1,5 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::types::PyString;
+use pyo3::exceptions::PyValueError;
 use skani::types::AniEstResult;
 
 /// A single hit found when querying a `~pyskani.Database` with a genome.
@@ -22,7 +23,6 @@ pub struct Hit {
 impl Hit {
     /// Create a new `Hit` object.
     #[new]
-    #[pyo3]
     pub fn __init__(
         identity: f32,
         query_name: &str,
