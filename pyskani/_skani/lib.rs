@@ -321,14 +321,35 @@ impl Database {
         })
     }
 
+    /// Create a new database.
+    ///
+    /// Arguments:
+    ///     path (`str`, `bytes`, `os.PathLike`, or `None`): The path of the
+    ///         folder to use for storing the sketches. If `None` given, the
+    ///         sketches are kept in memory. A new folder will be created if
+    ///         it does not exist.
+    ///
+    /// Keyword Arguments:
+    ///     compression (`int`): The compression factor for sketches. Memory
+    ///         usage and runtime is inversely proportional to the given
+    ///         value; lower values allows for ANI comparison of more distant
+    ///         genomes
+    ///     marker_compression (`int`): The compression factor for marker
+    ///         k-mers. Markers are used for filtering. You want at least ~100
+    ///         markers, so ``genome_size/marker_compression > 100`` is highly
+    ///         recommended. Higher value is more time/memory efficient.
+    ///
+    /// Raises:
+    ///     `OSError`: When a new folder could not be created.
+    ///     `FileExistsError`: When the folder already contains sketches.
+    ///
     #[new]
-    #[pyo3(signature = (path=None, *, marker_c=1000, c=125, k=15, amino_acid=false))]
+    #[pyo3(signature = (path=None, *, compression=125, marker_compression=1000, k=15))]
     pub fn __init__(
         path: Option<&PyAny>,
-        marker_c: usize,
-        c: usize,
+        compression: usize,
+        marker_compression: usize,
         k: usize,
-        amino_acid: bool,
     ) -> PyResult<PyClassInitializer<Self>> {
         let storage = match path {
             None => DatabaseStorage::Memory(HashMap::new()),
@@ -339,14 +360,32 @@ impl Database {
                 let encoded = os
                     .call_method1(pyo3::intern!(py, "fsdecode"), (folder,))?
                     .downcast::<PyString>()?;
+                // create the folder if it does not exist
+                let buf = PathBuf::from(encoded.to_str()?);
+                if !buf.exists() {
+                    if let Err(err) = std::fs::create_dir_all(&buf) {
+                        return if let Some(code) = err.raw_os_error() {
+                            let msg = format!("Failed to create {}", buf.display());
+                            Err(PyOSError::new_err((code, msg)))
+                        } else {
+                            Err(PyRuntimeError::new_err(err.to_string()))
+                        };
+                    }
+                }
+                // check the folder is not already in use
+                if buf.join("markers.bin").exists() {
+                    return Err(PyFileExistsError::new_err(
+                        buf.join("markers.bin").display().to_string(),
+                    ));
+                }
                 // use folder for storage
-                DatabaseStorage::Folder(PathBuf::from(encoded.to_str()?))
+                DatabaseStorage::Folder(buf)
             }
         };
         let sketcher = Self {
             sketches: storage,
             markers: Vec::new(),
-            params: SketchParams::new(marker_c, c, k, false, amino_acid),
+            params: SketchParams::new(marker_compression, compression, k, false, false),
         };
         Ok(sketcher.into())
     }
