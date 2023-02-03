@@ -93,7 +93,7 @@ impl DatabaseStorage {
     }
 }
 
-#[pyclass]
+#[pyclass(module = "pyskani._skani")]
 pub struct Database {
     params: SketchParams,
     markers: Vec<Sketch>,

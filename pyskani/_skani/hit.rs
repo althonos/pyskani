@@ -14,7 +14,7 @@ use skani::types::AniEstResult;
 ///     reference_fraction (`float`): The fraction of the reference
 ///         sequence covered by the alignment.
 ///
-#[pyclass]
+#[pyclass(module = "pyskani._skani")]
 pub struct Hit {
     result: AniEstResult,
 }

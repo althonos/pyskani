@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 
-#[pyclass]
+#[pyclass(module = "pyskani._skani")]
 #[derive(Clone)]
 pub struct Sketch {
     sketch: skani::types::Sketch,
