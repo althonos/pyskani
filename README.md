@@ -52,62 +52,53 @@ package:
 $ conda install -c bioconda pyskani
 ``` -->
 
-## 💡 Example
+## 💡 Examples
 
-The following snippets show how to compute the ANI between two genomes,
-with the reference being a draft genome.  For one-to-many or many-to-many 
-searches, simply add additional references with `database.add_draft` before 
-indexing.
+### 📝 Creating a database
 
+A database can be created either in memory or using a folder on the machine
+filesystem to store the sketches. Independently of the storage, a database
+can be used immediately for querying, or saved to a different location. 
 
-### 🔬 [Biopython](https://github.com/biopython/biopython)
-
-Biopython does not let us access to the sequence directly, so we need to
-convert it to bytes first with the `bytes` builtin function. For older
-versions of Biopython (earlier than 1.79), use `record.seq.encode()`
-instead of `bytes(record.seq)`.
-
+Here is how to create a database into memory, 
+using [Biopython](https://github.com/biopython/biopython)
+to load the record:
 ```python
-import pyskani
-import Bio.SeqIO
-
 database = pyskani.Database()
-
-# add a single draft genome to the database
-ref = list(Bio.SeqIO.parse("vendor/skani/test_files/e.coli-o157.fasta", "fasta"))
-database.add_draft("E. coli O157", [bytes(record.seq) for record in ref])
-
-# read the query and query the database
-query = Bio.SeqIO.read("vendor/skani/test_files/e.coli-K12.fasta", "fasta")
-hits = database.query_genome("E.coli K12", bytes(query.seq))
-for hit in hits:
-    print(hit.query_name, hit.reference_name, hit.identity, hit.query_fraction, hit.reference_fraction)
+record = Bio.SeqIO.read("vendor/skani/test_files/e.coli-EC590.fasta", "fasta")
+database.sketch("E. coli EC590", bytes(record.seq))
 ```
 
-### 🧪 [Scikit-bio](https://github.com/biocore/scikit-bio)
-
-Scikit-bio lets us access to the sequence directly as a `numpy` array, but
-shows the values as byte strings by default. To make them readable as
-`char` (for compatibility with the C code), they must be cast with
-`seq.values.view('B')`.
-
+For draft genomes, simply pass more arguments to the `sketch` method, for 
+which you can use the splat operator:
 ```python
-import pyskani
-import skbio.io
-
 database = pyskani.Database()
-
-# add a single draft genome to the database
-ref = list(skbio.io.read("vendor/skani/test_files/e.coli-o157.fasta", "fasta"))
-database.add_draft("E. coli O157", [seq.values.view('B')for seq in ref])
-
-# read the query and query the mapper
-query = next(skbio.io.read("vendor/skani/test_files/e.coli-K12.fasta", "fasta"))
-hits = database.query_genome("E.coli K12", query.values.view('B'))
-for hit in hits:
-    print(hit.query_name, hit.reference_name, hit.identity, hit.query_fraction, hit.reference_fraction)
+records = Bio.SeqIO.parse("vendor/skani/test_files/e.coli-o157.fasta", "fasta")
+sequences = (bytes(record.seq) for record in records)
+database.sketch("E. coli O157", *sequences)
 ```
 
+### 🗒️ Loading a database
+
+To load a database, either created from `skani` or `pyskani`, you can either
+load all sketches into memory, for fast querying:
+```python
+database = pyskani.Database.load("path/to/sketches")
+```
+
+Or load the files lazily to save memory, at the cost of slower querying:
+```python
+database = pyskani.Database.open("path/to/sketches")
+```
+
+### 🔎 Querying a database
+
+Once a database has been created or loaded, use the `Database.query` method
+to compute ANI for some query genomes:
+```python
+record = Bio.SeqIO.read("vendor/skani/test_files/e.coli-K12.fasta", "fasta")
+hits = database.query("E. coli K12", bytes(record.seq))
+```
 
 ## 💭 Feedback
 
