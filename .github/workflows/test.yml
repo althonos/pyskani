@@ -38,9 +38,11 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Setup Rust nightly
-      uses: ATiltedTree/setup-rust@v1
+      uses: actions-rs/toolchain@v1
       with:
-        rust-version: nightly
+        profile: minimal
+        toolchain: nightly
+        override: true
     - name: Update CI requirements
       run: python -m pip install -U -r .github/workflows/requirements.txt
     - name: Build extension
@@ -87,9 +89,11 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Setup Rust nightly
-      uses: ATiltedTree/setup-rust@v1
+      uses: actions-rs/toolchain@v1
       with:
-        rust-version: nightly
+        profile: minimal
+        toolchain: nightly
+        override: true
     - name: Update CI requirements
       run: python -m pip install -U -r .github/workflows/requirements.txt
     - name: Build extension
@@ -151,3 +155,29 @@ jobs:
   #     uses: codecov/codecov-action@v1
   #     with:
   #         flags: Windows,${{ matrix.python-impl}},${{ matrix.python-release }}
+
+  coverage:
+    name: Test (Linux)
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v1
+      with:
+        submodules: recursive
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.11"
+    - name: Setup Rust nightly
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: nightly
+        override: true
+    - name: Measure code coverage
+      uses: actions-rs/tarpaulin@v0.1
+      with:
+        version: '0.16.0'
+        args: '-v --out Xml --ciserver github-actions'
+    - name: Upload coverage statistics
+      uses: codecov/codecov-action@v1
