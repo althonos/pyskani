@@ -3,9 +3,9 @@
 *[PyO3](https://pyo3.rs/) bindings and Python interface to [skani](https://github.com/bluenote-1577/skani), a method for fast fast genomic identity calculation using sparse chaining.*
 
 [![Actions](https://img.shields.io/github/actions/workflow/status/althonos/pyskani/test.yml?branch=main&logo=github&style=flat-square&maxAge=300)](https://github.com/althonos/pyskani/actions)
-<!-- [![Coverage](https://img.shields.io/codecov/c/gh/althonos/pyskani/branch/main.svg?style=flat-square&maxAge=3600)](https://codecov.io/gh/althonos/pyskani/)
+[![Coverage](https://img.shields.io/codecov/c/gh/althonos/pyskani/branch/main.svg?style=flat-square&maxAge=3600)](https://codecov.io/gh/althonos/pyskani/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square&maxAge=2678400)](https://choosealicense.com/licenses/mit/)
-[![PyPI](https://img.shields.io/pypi/v/pyskani.svg?style=flat-square&maxAge=3600)](https://pypi.org/project/pyskani)
+<!-- [![PyPI](https://img.shields.io/pypi/v/pyskani.svg?style=flat-square&maxAge=3600)](https://pypi.org/project/pyskani)
 [![Bioconda](https://img.shields.io/conda/vn/bioconda/pyskani?style=flat-square&maxAge=3600&logo=anaconda)](https://anaconda.org/bioconda/pyskani)
 [![AUR](https://img.shields.io/aur/version/python-pyskani?logo=archlinux&style=flat-square&maxAge=3600)](https://aur.archlinux.org/packages/python-pyskani)
 [![Wheel](https://img.shields.io/pypi/wheel/pyskani.svg?style=flat-square&maxAge=3600)](https://pypi.org/project/pyskani/#files)
