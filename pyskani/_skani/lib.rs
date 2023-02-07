@@ -140,7 +140,8 @@ impl Database {
         }
 
         if is_valid && sketch.total_sequence_length > 20_000_000 {
-            sketch.repetitive_kmers = skani::seeding::get_repetitive_kmers(&sketch.kmer_seeds_k, sketch.c);
+            sketch.repetitive_kmers =
+                skani::seeding::get_repetitive_kmers(&sketch.kmer_seeds_k, sketch.c);
         }
 
         Ok(Sketch::from(sketch))
@@ -454,12 +455,34 @@ impl Database {
     ///     name (`str`): The name of the query genome.
     ///     contigs (`bytes`, `bytearray` or `memoryview`): The contigs of the
     ///         query genome.  
-    ///   
+    ///
+    /// Keyword Arguments:
+    ///     seed (`bool`): Use a seeded random number generator to ensure
+    ///         reproducibility of results.
+    ///     learned_ani (`bool` or `None`): Use a regression model to
+    ///         compute ANI, using a model trained on MAGs. Pass `True`
+    ///         or `False` to force enabling or disabling the model,
+    ///         respectively. By default, the regression model is enabled
+    ///         when the sketch compression factor is >=70.
+    ///     median (`bool`): Estimate median identity instead of average
+    ///         identity. Disabled by default.
+    ///     robust (`bool`): Estimate mean after trim off 10%/90% quantiles.
+    ///         Disabled by default.
+    ///
     /// Returns:
     ///     `list` of `~pyskani.Hit`: The hits found for the query.
     ///   
-    #[pyo3(signature = (name, *contigs, seed=true))]
-    pub fn query(&self, name: String, contigs: &PyTuple, seed: bool) -> PyResult<Vec<Hit>> {
+    #[pyo3(signature = (name, *contigs, seed=true, learned_ani=None, median=false, robust=false))]
+    pub fn query(
+        &self,
+        name: String,
+        contigs: &PyTuple,
+        seed: bool,
+        learned_ani: Option<bool>,
+        median: bool,
+        robust: bool,
+    ) -> PyResult<Vec<Hit>> {
+        // Get a view on the contigs
         let py = contigs.py();
         let buffers = contigs
             .into_iter()
@@ -471,7 +494,10 @@ impl Database {
             .collect::<PyResult<Vec<Vec<u8>>>>()?;
         let views = bytes.iter().map(|x| x.as_ref());
 
+        // Sketch query
         let query = self._sketch(name, views, seed)?;
+
+        // Build command parameters
         let command_params = CommandParams {
             screen: false,
             screen_val: skani::params::SEARCH_ANI_CUTOFF_DEFAULT,
@@ -481,8 +507,8 @@ impl Database {
             query_files: Default::default(),
             refs_are_sketch: true,
             queries_are_sketch: true,
-            robust: false,
-            median: false,
+            robust,
+            median,
             sparse: false,
             full_matrix: false,
             max_results: 1_000_000_000,
@@ -491,8 +517,8 @@ impl Database {
             min_aligned_frac: skani::params::D_FRAC_COVER_CUTOFF.parse::<f64>().unwrap() / 100.0,
             keep_refs: true,
             est_ci: Default::default(),
-            learned_ani: false,
-            learned_ani_cmd: false,
+            learned_ani_cmd: learned_ani.is_some(),
+            learned_ani: learned_ani.unwrap_or(false),
             detailed_out: false,
         };
 
@@ -524,6 +550,16 @@ impl Database {
             let ani_res = skani::chain::chain_seeds(reference.as_ref(), query.as_ref(), map_params);
             if ani_res.ani > 0.5 {
                 hits.push(Hit::from(ani_res));
+            }
+        }
+
+        let learned = learned_ani.unwrap_or_else(|| {
+            skani::parse::use_learned_ani(self.params.c, false, false, robust, median)
+        });
+        // FIXME: maybe pre-load model, to avoid having to deserialize on every query?
+        if let Some(ref model) = skani::regression::get_model(self.params.c, learned) {
+            for hit in hits.iter_mut() {
+                skani::regression::predict_from_ani_res(&mut hit.as_mut(), model);
             }
         }
 

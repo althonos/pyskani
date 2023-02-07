@@ -103,6 +103,18 @@ impl Hit {
     }
 }
 
+impl AsRef<AniEstResult> for Hit {
+    fn as_ref(&self) -> &AniEstResult {
+        &self.result
+    }
+}
+
+impl AsMut<AniEstResult> for Hit {
+    fn as_mut(&mut self) -> &mut AniEstResult {
+        &mut self.result
+    }
+}
+
 impl From<AniEstResult> for Hit {
     fn from(result: AniEstResult) -> Self {
         Self { result }
