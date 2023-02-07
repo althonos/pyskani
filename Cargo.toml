@@ -26,3 +26,8 @@ path = "vendor/skani"
 default = []
 extension-module = ["pyo3/extension-module"]
 nightly = ["pyo3/nightly"]
+
+[[test]]
+name = "unittest"
+path = "pyskani/tests/unittest.rs"
+harness = false

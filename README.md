@@ -46,6 +46,9 @@ In the event you have to compile the package from source, all the required
 Rust libraries are vendored in the source distribution, and a Rust compiler
 will be setup automatically if there is none on the host machine.
 
+*At the moment `skani` is still under active development. `pyskani` will be
+released to PyPI and Bioconda when `skani` is officialy released to [crates.io](https://crates.io).*
+
 <!-- Otherwise, pyskani is also available as a [Bioconda](https://anaconda.org/bioconda/pyskani)
 package:
 ```console
