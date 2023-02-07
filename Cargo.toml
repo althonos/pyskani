@@ -19,7 +19,7 @@ supercow = "*"
 version = "0.18.0"
 
 [dependencies.skani]
-version = "0.0.1"
+version = "0.1.0"
 path = "vendor/skani"
 
 [features]

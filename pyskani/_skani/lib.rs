@@ -140,7 +140,7 @@ impl Database {
         }
 
         if is_valid && sketch.total_sequence_length > 20_000_000 {
-            sketch.repetitive_kmers = skani::seeding::get_repetitive_kmers(&sketch.kmer_seeds_k);
+            sketch.repetitive_kmers = skani::seeding::get_repetitive_kmers(&sketch.kmer_seeds_k, sketch.c);
         }
 
         Ok(Sketch::from(sketch))
@@ -474,8 +474,8 @@ impl Database {
         let query = self._sketch(name, views, seed)?;
         let command_params = CommandParams {
             screen: false,
-            mode: skani::params::Mode::Search,
             screen_val: skani::params::SEARCH_ANI_CUTOFF_DEFAULT,
+            mode: skani::params::Mode::Search,
             out_file_name: Default::default(),
             ref_files: Default::default(),
             query_files: Default::default(),
@@ -491,6 +491,9 @@ impl Database {
             min_aligned_frac: skani::params::D_FRAC_COVER_CUTOFF.parse::<f64>().unwrap() / 100.0,
             keep_refs: true,
             est_ci: Default::default(),
+            learned_ani: false,
+            learned_ani_cmd: false,
+            detailed_out: false,
         };
 
         let mut shortlist = HashSet::new();
