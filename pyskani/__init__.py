@@ -13,7 +13,7 @@ __all__ = [
 ]
 
 # Expose the version of embedded skani
-SKANI_VERSION = _skani.__build__["dependencies"]["skani"]
+SKANI_VERSION = _skani.__build__["dependencies"]["skani"]  # type: ignore
 
 # Small addition to the docstring: show a link redirecting to the
 # online version of the documentation, but this can only work when
