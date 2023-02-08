@@ -2,7 +2,6 @@ extern crate bincode;
 extern crate pyo3;
 extern crate pyo3_built;
 extern crate skani;
-extern crate supercow;
 
 mod hit;
 mod sketch;
@@ -13,6 +12,7 @@ mod build {
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fs::File;
@@ -20,7 +20,6 @@ use std::io::BufReader;
 use std::path::Path;
 use std::path::PathBuf;
 
-use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::PyFileExistsError;
 use pyo3::exceptions::PyKeyError;
 use pyo3::exceptions::PyOSError;
@@ -419,23 +418,21 @@ impl Database {
     ///
     /// Arguments:
     ///     name (`object`): The name of the reference genome to add.
-    ///     contigs (`bytes`, `bytearray` or `memoryview`): The contigs of the
-    ///         reference genome.
+    ///     contigs (`str`, `bytes`, `bytearray` or `memoryview`): The contigs 
+    ///         of the reference genome.
     ///
     #[pyo3(signature = (name, *contigs, seed=true))]
     pub fn sketch(&mut self, name: String, contigs: &PyTuple, seed: bool) -> PyResult<()> {
-        let py = contigs.py();
-        let buffers = contigs
+        // Get a view on the contigs
+        let contents = contigs
             .into_iter()
-            .map(|item| PyBuffer::get(item))
-            .collect::<PyResult<Vec<PyBuffer<u8>>>>()?;
-        let bytes = buffers
-            .into_iter()
-            .map(|buffer| buffer.to_vec(py))
-            .collect::<PyResult<Vec<Vec<u8>>>>()?;
-        let views = bytes.iter().map(|x| x.as_ref());
-
+            .map(|item| self::utils::as_bytes(item))
+            .collect::<PyResult<Vec<_>>>()?;
+        let views = contents.iter()
+            .map(|cow| cow.as_ref());
+        // Sketch query
         let sketch = self._sketch(name, views, seed)?;
+        // Record sketches
         self.markers
             .push(skani::types::Sketch::get_markers_only(sketch.as_ref()).into());
         self.sketches.store(sketch, &self.params)?;
@@ -446,8 +443,8 @@ impl Database {
     ///      
     /// Arguments:
     ///     name (`str`): The name of the query genome.
-    ///     contigs (`bytes`, `bytearray` or `memoryview`): The contigs of the
-    ///         query genome.  
+    ///     contigs (`str`, `bytes`, `bytearray` or `memoryview`): The contigs 
+    ///         of the query genome.
     ///
     /// Keyword Arguments:
     ///     seed (`bool`): Use a seeded random number generator to ensure
@@ -476,16 +473,12 @@ impl Database {
         robust: bool,
     ) -> PyResult<Vec<Hit>> {
         // Get a view on the contigs
-        let py = contigs.py();
-        let buffers = contigs
+        let contents = contigs
             .into_iter()
-            .map(|item| PyBuffer::get(item))
-            .collect::<PyResult<Vec<PyBuffer<u8>>>>()?;
-        let bytes = buffers
-            .into_iter()
-            .map(|buffer| buffer.to_vec(py))
-            .collect::<PyResult<Vec<Vec<u8>>>>()?;
-        let views = bytes.iter().map(|x| x.as_ref());
+            .map(|item| self::utils::as_bytes(item))
+            .collect::<PyResult<Vec<_>>>()?;
+        let views = contents.iter()
+            .map(|cow| cow.as_ref());
 
         // Sketch query
         let query = self._sketch(name, views, seed)?;
@@ -515,6 +508,7 @@ impl Database {
             detailed_out: false,
         };
 
+        // Search marker sketches first
         let mut shortlist = HashSet::new();
         for marker in self.markers.iter() {
             if skani::chain::check_markers_quickly(
@@ -532,6 +526,7 @@ impl Database {
             }
         }
 
+        // Search full sketches
         let mut hits = Vec::new();
         for name in shortlist.iter() {
             let reference = &*self.sketches.load(&name)?;
@@ -546,10 +541,11 @@ impl Database {
             }
         }
 
+        // Apply regression model for ANI correction
+        // FIXME: maybe pre-load model, to avoid having to deserialize on every query?
         let learned = learned_ani.unwrap_or_else(|| {
             skani::parse::use_learned_ani(self.params.c, false, false, robust, median)
         });
-        // FIXME: maybe pre-load model, to avoid having to deserialize on every query?
         if let Some(ref model) = skani::regression::get_model(self.params.c, learned) {
             for hit in hits.iter_mut() {
                 skani::regression::predict_from_ani_res(&mut hit.as_mut(), model);
