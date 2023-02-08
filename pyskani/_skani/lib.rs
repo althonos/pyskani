@@ -1,6 +1,5 @@
 extern crate bincode;
 extern crate pyo3;
-extern crate rayon;
 extern crate skani;
 extern crate supercow;
 

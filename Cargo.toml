@@ -11,16 +11,12 @@ crate-type = ["cdylib", "rlib"]
 path = "pyskani/_skani/lib.rs"
 
 [dependencies]
-bincode = "*"
-rayon = "*"
-supercow = "*"
+bincode = "1.3.3"
+supercow = "0.1.0"
+skani = "0.1.0"
 
 [dependencies.pyo3]
-version = "0.18.0"
-
-[dependencies.skani]
-version = "0.1.0"
-path = "vendor/skani"
+version = "0.18.1"
 
 [features]
 default = []
