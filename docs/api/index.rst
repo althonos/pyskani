@@ -8,7 +8,7 @@ API Reference
 
    database <database>
    sketch <sketch>
-   hit <sketch>
+   hit <hit>
 
 
 .. only:: html
