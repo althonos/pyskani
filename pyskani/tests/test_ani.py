@@ -1,3 +1,4 @@
+import gzip
 import os
 import tempfile
 import unittest
@@ -5,19 +6,24 @@ import unittest
 import pyskani
 from . import fasta
 
-
-DATA_FOLDER = os.path.realpath(os.path.join(__file__, os.pardir, "data"))
+# TODO: Update to use `pkg-resources`
+DATA_FOLDER = os.path.realpath(os.path.join(__file__, os.pardir))
 
 
 @unittest.skipUnless(os.path.exists(DATA_FOLDER), "missing data folder")
 class TestAniEC590(unittest.TestCase):
 
+    @staticmethod
+    def load(filename):
+        with gzip.open(os.path.join(DATA_FOLDER, f"{filename}.gz"), mode="rt") as f:
+            return next(fasta.parse(f))
+
     @classmethod
     def setUpClass(cls):
-        cls.ref = next(fasta.parse(os.path.join(DATA_FOLDER, "e.coli-EC590.fasta")))
+        cls.ref = cls.load("e.coli-EC590.fasta")
         cls.db = pyskani.Database()
         cls.db.sketch("EC590", cls.ref.seq.encode("ascii"))
-        cls.query = next(fasta.parse(os.path.join(DATA_FOLDER, "e.coli-K12.fasta")))
+        cls.query = cls.load("e.coli-K12.fasta")
 
     def test_basic(self):
         hits = self.db.query("K12", self.query.seq.encode("ascii"))
