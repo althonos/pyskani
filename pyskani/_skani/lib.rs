@@ -637,6 +637,8 @@ impl Database {
     }
 }
 
+/// A Python module for metagenomic sequence comparison with ``skani``.
+///
 #[pymodule]
 #[pyo3(name = "_skani")]
 pub fn init(py: Python, m: &PyModule) -> PyResult<()> {
@@ -646,7 +648,7 @@ pub fn init(py: Python, m: &PyModule) -> PyResult<()> {
     m.add("__build__", pyo3_built!(py, build))?;
 
     m.add_class::<Database>()?;
-    m.add_class::<Database>()?;
+    m.add_class::<Hit>()?;
     m.add_class::<Sketch>()?;
 
     Ok(())
