@@ -1,10 +1,16 @@
 extern crate bincode;
 extern crate pyo3;
+extern crate pyo3_built;
 extern crate skani;
 extern crate supercow;
 
 mod hit;
 mod sketch;
+
+#[allow(dead_code)]
+mod build {
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
 
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -23,6 +29,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyString;
 use pyo3::types::PyTuple;
 use pyo3::types::PyType;
+use pyo3_built::pyo3_built;
 use skani::params::CommandParams;
 use skani::params::SketchParams;
 use supercow::Supercow;
@@ -632,11 +639,11 @@ impl Database {
 
 #[pymodule]
 #[pyo3(name = "_skani")]
-pub fn init(_py: Python, m: &PyModule) -> PyResult<()> {
+pub fn init(py: Python, m: &PyModule) -> PyResult<()> {
     m.add("__package__", "pyskani")?;
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add("__author__", env!("CARGO_PKG_AUTHORS").replace(':', "\n"))?;
-    // m.add("__build__", pyo3_built!(py, built))?;
+    m.add("__build__", pyo3_built!(py, build))?;
 
     m.add_class::<Database>()?;
     m.add_class::<Database>()?;
