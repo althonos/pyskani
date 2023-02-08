@@ -6,6 +6,7 @@ extern crate supercow;
 
 mod hit;
 mod sketch;
+mod utils;
 
 #[allow(dead_code)]
 mod build {
@@ -26,7 +27,6 @@ use pyo3::exceptions::PyOSError;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::PyString;
 use pyo3::types::PyTuple;
 use pyo3::types::PyType;
 use pyo3_built::pyo3_built;
@@ -220,18 +220,14 @@ impl Database {
     #[allow(unused)]
     pub fn load(cls: &PyType, path: &PyAny) -> PyResult<Self> {
         // obtain Unicode representation of path
-        let py = path.py();
-        let os = py.import(pyo3::intern!(py, "os"))?;
-        let encoded = os
-            .call_method1(pyo3::intern!(py, "fsdecode"), (path,))?
-            .downcast::<PyString>()?;
+        let path = self::utils::fsdecode(path)?;
 
         // load marker genes like in `Database.open`.
-        let mut db = Self::open(cls, encoded)?;
+        let mut db = Self::open(cls, path)?;
 
         // load reference sketches
         let mut sketches = HashMap::new();
-        for entry in std::fs::read_dir(encoded.to_str()?)
+        for entry in std::fs::read_dir(path.to_str()?)
             .unwrap() // safe to unwrap, the `File::open` would have crashed otherwise
             .filter_map(Result::ok)
             .filter(|entry| {
@@ -293,14 +289,10 @@ impl Database {
     #[allow(unused)]
     pub fn open(cls: &PyType, path: &PyAny) -> PyResult<Self> {
         // obtain Unicode representation of path
-        let py = path.py();
-        let os = py.import(pyo3::intern!(py, "os"))?;
-        let encoded = os
-            .call_method1(pyo3::intern!(py, "fsdecode"), (path,))?
-            .downcast::<PyString>()?;
+        let path = self::utils::fsdecode(path)?;
 
         // load marker sketches
-        let markers_path = Path::new(encoded.to_str()?).join("markers.bin");
+        let markers_path = Path::new(path.to_str()?).join("markers.bin");
         let reader = match File::open(&markers_path).map(BufReader::new) {
             Ok(reader) => reader,
             Err(err) => {
@@ -324,7 +316,7 @@ impl Database {
         Ok(Self {
             params,
             markers,
-            sketches: DatabaseStorage::Folder(PathBuf::from(encoded.to_str()?)),
+            sketches: DatabaseStorage::Folder(PathBuf::from(path.to_str()?)),
         })
     }
 
@@ -362,13 +354,9 @@ impl Database {
             None => DatabaseStorage::Memory(HashMap::new()),
             Some(folder) => {
                 // obtain Unicode representation of path
-                let py = folder.py();
-                let os = py.import(pyo3::intern!(py, "os"))?;
-                let encoded = os
-                    .call_method1(pyo3::intern!(py, "fsdecode"), (folder,))?
-                    .downcast::<PyString>()?;
+                let folder = self::utils::fsdecode(folder)?;
                 // create the folder if it does not exist
-                let buf = PathBuf::from(encoded.to_str()?);
+                let buf = PathBuf::from(folder.to_str()?);
                 if !buf.exists() {
                     if let Err(err) = std::fs::create_dir_all(&buf) {
                         return if let Some(code) = err.raw_os_error() {
@@ -574,9 +562,12 @@ impl Database {
 
     /// Save the database to the given path.
     #[pyo3(signature = (path, overwrite=false))]
-    pub fn save(&self, path: &str, overwrite: bool) -> PyResult<()> {
+    pub fn save(&self, path: &PyAny, overwrite: bool) -> PyResult<()> {
+        // obtain Unicode representation of path
+        let path = self::utils::fsdecode(path)?;
+
         // Create folder if it doesn't exist
-        let folder = Path::new(path);
+        let folder = Path::new(path.to_str()?);
         if !folder.exists() {
             if let Err(err) = std::fs::create_dir_all(folder) {
                 return if let Some(code) = err.raw_os_error() {
