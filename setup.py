@@ -133,7 +133,15 @@ class build_rust(_build_rust):
         return ext_path
 
 
+# HACK: Use the `configparser` from Python to read the `Cargo.toml`
+#       manifest file (this... works) so that the package version
+#       can be extracted from there and synchronized everywhere.
+parser = configparser.ConfigParser()
+parser.read(os.path.join(os.path.dirname(__file__), "Cargo.toml"))
+version = parser.get("package", "version").strip('"')
+
 setuptools.setup(
+    version=version,
     setup_requires=["setuptools", "setuptools_rust"],
     cmdclass=dict(sdist=sdist, build_rust=build_rust, vendor=vendor),
     rust_extensions=[rust.RustExtension(

@@ -1,7 +1,7 @@
 from . import _skani
 from ._skani import Sketch, Database, Hit
 
-__version__ = "0.0.1"
+__version__ = _skani.__version__
 __author__ = _skani.__author__
 __doc__ = _skani.__doc__
 __build__ = _skani.__build__
