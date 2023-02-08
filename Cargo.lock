@@ -1167,7 +1167,6 @@ dependencies = [
  "pyo3",
  "pyo3-built",
  "skani",
- "supercow",
 ]
 
 [[package]]
@@ -1610,12 +1609,6 @@ dependencies = [
  "rustversion",
  "syn",
 ]
-
-[[package]]
-name = "supercow"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "171758edb47aa306a78dfa4ab9aeb5167405bd4e3dc2b64e88f6a84bbe98bd63"
 
 [[package]]
 name = "syn"

@@ -32,7 +32,6 @@ use pyo3::types::PyType;
 use pyo3_built::pyo3_built;
 use skani::params::CommandParams;
 use skani::params::SketchParams;
-use supercow::Supercow;
 
 use self::hit::Hit;
 use self::sketch::Sketch;
@@ -71,10 +70,10 @@ impl DatabaseStorage {
         }
     }
 
-    fn load<'db>(&self, name: &str) -> PyResult<Supercow<Sketch>> {
+    fn load<'db>(&'db self, name: &str) -> PyResult<Cow<'db, Sketch>> {
         match self {
             DatabaseStorage::Memory(memory) => match memory.get(name) {
-                Some(sketch) => Ok(Supercow::borrowed(sketch)),
+                Some(sketch) => Ok(Cow::Borrowed(sketch)),
                 None => Err(PyKeyError::new_err(name.to_string())),
             },
             DatabaseStorage::Folder(path) => {
@@ -92,7 +91,7 @@ impl DatabaseStorage {
                 };
                 match bincode::deserialize_from::<_, (SketchParams, skani::types::Sketch)>(reader) {
                     Err(err) => Err(PyValueError::new_err(err.to_string())),
-                    Ok((_, raw_sketch)) => Ok(Supercow::owned(Sketch::from(raw_sketch))),
+                    Ok((_, raw_sketch)) => Ok(Cow::Owned(Sketch::from(raw_sketch))),
                 }
             }
         }
