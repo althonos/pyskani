@@ -24,8 +24,6 @@ import sys
 docssrc_dir = os.path.dirname(os.path.abspath(__file__))
 project_dir = os.path.dirname(docssrc_dir)
 
-sys.path.insert(0, os.path.abspath(os.path.join(__file__, project_dir)))
-
 
 # -- Project information -----------------------------------------------------
 
