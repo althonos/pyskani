@@ -430,13 +430,18 @@ impl Database {
             .collect::<PyResult<Vec<_>>>()?;
         let views = contents.iter()
             .map(|cow| cow.as_ref());
-        // Sketch query
-        let sketch = self._sketch(name, views, seed)?;
-        // Record sketches
-        self.markers
-            .push(skani::types::Sketch::get_markers_only(sketch.as_ref()).into());
-        self.sketches.store(sketch, &self.params)?;
-        Ok(())
+
+        // Release the GIL while sketching
+        let py = contigs.py();
+        py.allow_threads(move || {
+            // Sketch query
+            let sketch = self._sketch(name, views, seed)?;
+            // Record sketches
+            self.markers
+                .push(skani::types::Sketch::get_markers_only(sketch.as_ref()).into());
+            self.sketches.store(sketch, &self.params)?;
+            Ok(())
+        })
     }
 
     /// Query the database with a genome.
@@ -474,85 +479,83 @@ impl Database {
     ) -> PyResult<Vec<Hit>> {
         // Get a view on the contigs
         let contents = contigs
-            .into_iter()
-            .map(|item| self::utils::as_bytes(item))
-            .collect::<PyResult<Vec<_>>>()?;
+        .into_iter()
+        .map(|item| self::utils::as_bytes(item))
+        .collect::<PyResult<Vec<_>>>()?;
         let views = contents.iter()
-            .map(|cow| cow.as_ref());
-
-        // Sketch query
-        let query = self._sketch(name, views, seed)?;
-
-        // Build command parameters
-        let command_params = CommandParams {
-            screen: false,
-            screen_val: skani::params::SEARCH_ANI_CUTOFF_DEFAULT,
-            mode: skani::params::Mode::Search,
-            out_file_name: Default::default(),
-            ref_files: Default::default(),
-            query_files: Default::default(),
-            refs_are_sketch: true,
-            queries_are_sketch: true,
-            robust,
-            median,
-            sparse: false,
-            full_matrix: false,
-            max_results: 1_000_000_000,
-            individual_contig_q: false,
-            individual_contig_r: false,
-            min_aligned_frac: skani::params::D_FRAC_COVER_CUTOFF.parse::<f64>().unwrap() / 100.0,
-            keep_refs: true,
-            est_ci: Default::default(),
-            learned_ani_cmd: learned_ani.is_some(),
-            learned_ani: learned_ani.unwrap_or(false),
-            detailed_out: false,
-        };
-
-        // Search marker sketches first
-        let mut shortlist = HashSet::new();
-        for marker in self.markers.iter() {
-            if skani::chain::check_markers_quickly(
-                query.as_ref(),
-                marker.as_ref(),
-                command_params.screen_val,
-            ) {
-                let name = Path::new(&marker.as_ref().file_name)
+        .map(|cow| cow.as_ref());
+        // Release the GIL while querying
+        let py = contigs.py();
+        py.allow_threads(move || {
+            // Sketch query
+            let query = self._sketch(name, views, seed)?;
+            // Build command parameters
+            let command_params = CommandParams {
+                screen: false,
+                screen_val: skani::params::SEARCH_ANI_CUTOFF_DEFAULT,
+                mode: skani::params::Mode::Search,
+                out_file_name: Default::default(),
+                ref_files: Default::default(),
+                query_files: Default::default(),
+                refs_are_sketch: true,
+                queries_are_sketch: true,
+                robust,
+                median,
+                sparse: false,
+                full_matrix: false,
+                max_results: 1_000_000_000,
+                individual_contig_q: false,
+                individual_contig_r: false,
+                min_aligned_frac: skani::params::D_FRAC_COVER_CUTOFF.parse::<f64>().unwrap() / 100.0,
+                keep_refs: true,
+                est_ci: Default::default(),
+                learned_ani_cmd: learned_ani.is_some(),
+                learned_ani: learned_ani.unwrap_or(false),
+                detailed_out: false,
+            };
+            // Search marker sketches first
+            let mut shortlist = HashSet::new();
+            for marker in self.markers.iter() {
+                if skani::chain::check_markers_quickly(
+                    query.as_ref(),
+                    marker.as_ref(),
+                    command_params.screen_val,
+                ) {
+                    let name = Path::new(&marker.as_ref().file_name)
                     .file_name()
                     .unwrap()
                     .to_os_string()
-                    .into_string()
-                    .unwrap();
-                shortlist.insert(name);
+                        .into_string()
+                        .unwrap();
+                    shortlist.insert(name);
+                }
             }
-        }
-
-        // Search full sketches
-        let mut hits = Vec::new();
-        for name in shortlist.iter() {
-            let reference = &*self.sketches.load(&name)?;
-            let map_params = skani::chain::map_params_from_sketch(
-                reference.as_ref(),
-                self.params.use_aa,
-                &command_params,
-            );
-            let ani_res = skani::chain::chain_seeds(reference.as_ref(), query.as_ref(), map_params);
-            if ani_res.ani > 0.5 {
-                hits.push(Hit::from(ani_res));
+            // Search full sketches
+            let mut hits = Vec::new();
+            for name in shortlist.iter() {
+                let reference = &*self.sketches.load(&name)?;
+                let map_params = skani::chain::map_params_from_sketch(
+                    reference.as_ref(),
+                    self.params.use_aa,
+                    &command_params,
+                );
+                let ani_res = skani::chain::chain_seeds(reference.as_ref(), query.as_ref(), map_params);
+                if ani_res.ani > 0.5 {
+                    hits.push(Hit::from(ani_res));
+                }
             }
-        }
-
-        // Apply regression model for ANI correction
-        // FIXME: maybe pre-load model, to avoid having to deserialize on every query?
-        let learned = learned_ani.unwrap_or_else(|| {
-            skani::parse::use_learned_ani(self.params.c, false, false, robust, median)
-        });
-        if let Some(ref model) = skani::regression::get_model(self.params.c, learned) {
-            for hit in hits.iter_mut() {
-                skani::regression::predict_from_ani_res(&mut hit.as_mut(), model);
+            // Apply regression model for ANI correction
+            // FIXME: maybe pre-load model, to avoid having to deserialize on every query?
+            let learned = learned_ani.unwrap_or_else(|| {
+                skani::parse::use_learned_ani(self.params.c, false, false, robust, median)
+            });
+            if let Some(ref model) = skani::regression::get_model(self.params.c, learned) {
+                for hit in hits.iter_mut() {
+                    skani::regression::predict_from_ani_res(&mut hit.as_mut(), model);
+                }
             }
-        }
-
-        Ok(hits)
+            Ok(hits)
+        })
     }
 
     /// Save the database to the given path.
