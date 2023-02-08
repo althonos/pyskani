@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use pyo3::prelude::*;
 use pyo3::buffer::PyBuffer;
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::types::PyString;
 use pyo3::types::PyBytes;
 
@@ -28,4 +29,9 @@ pub fn as_bytes<'py>(object: &'py PyAny) -> PyResult<Cow<'py, [u8]>> {
         let contents = buffer.to_vec(py)?;
         Ok(Cow::Owned(contents))
     }
+}
+
+/// Create a new error 
+pub fn poisoned_lock_error() -> PyErr {
+    PyRuntimeError::new_err("Poisoned lock")
 }

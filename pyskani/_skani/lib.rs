@@ -12,6 +12,7 @@ mod build {
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
+use std::sync::RwLock;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -100,8 +101,8 @@ impl DatabaseStorage {
 #[pyclass(module = "pyskani._skani")]
 pub struct Database {
     params: SketchParams,
-    markers: Vec<Sketch>,
-    sketches: DatabaseStorage,
+    markers: RwLock<Vec<Sketch>>,
+    sketches: RwLock<DatabaseStorage>,
 }
 
 impl Database {
@@ -166,10 +167,15 @@ impl Database {
                 }
             }
         };
-        let markers = self.markers.iter().map(|s| s.as_ref()).collect::<Vec<_>>();
-        match bincode::serialize_into(writer, &(&self.params, markers)) {
-            Ok(()) => Ok(()),
-            Err(err) => return Err(PyValueError::new_err(err.to_string())),
+
+        if let Ok(vec) = self.markers.read() {
+            let refs = vec.iter().map(|s| s.as_ref()).collect::<Vec<_>>();
+            match bincode::serialize_into(writer, &(&self.params, &refs)) {
+                Ok(()) => Ok(()),
+                Err(err) => Err(PyValueError::new_err(err.to_string())),
+            }
+        } else {
+            Err(self::utils::poisoned_lock_error())
         }
     }
 
@@ -262,7 +268,7 @@ impl Database {
                 }
             };
         }
-        db.sketches = DatabaseStorage::Memory(sketches);
+        db.sketches = DatabaseStorage::Memory(sketches).into();
         Ok(db)
     }
 
@@ -313,8 +319,8 @@ impl Database {
         // use the folder for storage
         Ok(Self {
             params,
-            markers,
-            sketches: DatabaseStorage::Folder(PathBuf::from(path.to_str()?)),
+            markers: RwLock::new(markers),
+            sketches: RwLock::new(DatabaseStorage::Folder(PathBuf::from(path.to_str()?))),
         })
     }
 
@@ -376,8 +382,8 @@ impl Database {
             }
         };
         let sketcher = Self {
-            sketches: storage,
-            markers: Vec::new(),
+            sketches: RwLock::new(storage),
+            markers: Default::default(),
             params: SketchParams::new(marker_compression, compression, k, false, false),
         };
         Ok(sketcher.into())
@@ -401,13 +407,17 @@ impl Database {
     /// `pathlib.Path` or `None`: The path where sketches are stored.
     #[getter]
     pub fn get_path(&self, py: Python) -> PyResult<PyObject> {
-        match &self.sketches {
-            DatabaseStorage::Memory(_) => Ok(py.None()),
-            DatabaseStorage::Folder(folder) => {
-                let pathlib = py.import(pyo3::intern!(py, "pathlib"))?;
-                let path = pathlib.call_method1(pyo3::intern!(py, "Path"), (folder,))?;
-                Ok(path.to_object(py))
+        if let Ok(sketches) = self.sketches.read() {
+            match *sketches {
+                DatabaseStorage::Memory(_) => Ok(py.None()),
+                DatabaseStorage::Folder(ref folder) => {
+                    let pathlib = py.import(pyo3::intern!(py, "pathlib"))?;
+                    let path = pathlib.call_method1(pyo3::intern!(py, "Path"), (folder,))?;
+                    Ok(path.to_object(py))
+                }
             }
+        } else {
+            Err(self::utils::poisoned_lock_error())
         }
     }
 
@@ -433,15 +443,24 @@ impl Database {
 
         // Release the GIL while sketching
         let py = contigs.py();
-        py.allow_threads(move || {
-            // Sketch query
-            let sketch = self._sketch(name, views, seed)?;
-            // Record sketches
-            self.markers
-                .push(skani::types::Sketch::get_markers_only(sketch.as_ref()).into());
-            self.sketches.store(sketch, &self.params)?;
-            Ok(())
-        })
+        let (sketch, marker) = py.allow_threads(|| {
+            self._sketch(name, views, seed)
+                .map(|sketch| {
+                    let marker = skani::types::Sketch::get_markers_only(sketch.as_ref()).into();
+                    (sketch, marker)
+                })
+        })?;
+          
+        // Record sketches
+        self.markers
+            .write()
+            .map_err(|_| self::utils::poisoned_lock_error())?
+            .push(marker);
+        self.sketches
+            .write()
+            .map_err(|_| self::utils::poisoned_lock_error())?
+            .store(sketch, &self.params)?;
+        Ok(())
     }
 
     /// Query the database with a genome.
@@ -515,7 +534,7 @@ impl Database {
             };
             // Search marker sketches first
             let mut shortlist = HashSet::new();
-            for marker in self.markers.iter() {
+            for marker in self.markers.read().map_err(|_| self::utils::poisoned_lock_error())?.iter() {
                 if skani::chain::check_markers_quickly(
                     query.as_ref(),
                     marker.as_ref(),
@@ -533,7 +552,9 @@ impl Database {
             // Search full sketches
             let mut hits = Vec::new();
             for name in shortlist.iter() {
-                let reference = &*self.sketches.load(&name)?;
+                let guard = self.sketches.read()
+                    .map_err(|_| self::utils::poisoned_lock_error())?;
+                let reference = &*guard.load(&name)?;
                 let map_params = skani::chain::map_params_from_sketch(
                     reference.as_ref(),
                     self.params.use_aa,
@@ -589,6 +610,8 @@ impl Database {
         // Serialize the sketches
         for filename in self
             .markers
+            .read()
+            .map_err(|_| self::utils::poisoned_lock_error())?
             .iter()
             .map(|marker| Path::new(&marker.as_ref().file_name))
         {
@@ -604,7 +627,7 @@ impl Database {
                     sketch_path.display().to_string(),
                 ));
             }
-            self._save_sketch(sketch_path, &*self.sketches.load(&name)?)?;
+            self._save_sketch(sketch_path, &*self.sketches.read().map_err(|_| self::utils::poisoned_lock_error())?.load(&name)?)?;
         }
         Ok(())
     }
@@ -616,12 +639,16 @@ impl Database {
     /// ``markers.bin``.
     ///
     pub fn flush(&self) -> PyResult<()> {
-        match &self.sketches {
-            DatabaseStorage::Memory(_) => Ok(()),
-            DatabaseStorage::Folder(folder) => {
-                let path = folder.join("markers.bin");
-                self._save_markers(&path)
+        if let Ok(sketches) = self.sketches.read() {
+            match &*sketches {
+                DatabaseStorage::Memory(_) => Ok(()),
+                DatabaseStorage::Folder(folder) => {
+                    let path = folder.join("markers.bin");
+                    self._save_markers(&path)
+                }
             }
+        } else {
+            Err(self::utils::poisoned_lock_error())
         }
     }
 }
