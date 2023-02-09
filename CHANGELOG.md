@@ -8,4 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 [Unreleased]: https://github.com/althonos/pyskani/compare/a851bd...HEAD
 
+
+## [v0.1.0] - 2023-02-09
+[v0.1.0]: https://github.com/althonos/pyskani/compare/a851bd...v0.1.0
+
 Initial release.

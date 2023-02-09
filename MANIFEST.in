@@ -1,0 +1,13 @@
+include setup.*
+include Cargo.toml
+include Cargo.lock
+include COPYING
+include CHANGELOG.md
+include README.md
+include pyproject.toml
+
+recursive-include pyskani       *.py *.rs
+recursive-include pyskani/tests *.py *.fasta.gz
+
+include .cargo/config.toml
+recursive-include crates *
