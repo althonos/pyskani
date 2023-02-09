@@ -16,6 +16,6 @@ API Reference
     .. autosummary::
         :nosignatures:
 
-        pyfastani.Database
-        pyfastani.Sketch
-        pyfastani.Hit
+        pyskani.Database
+        pyskani.Sketch
+        pyskani.Hit
