@@ -31,9 +31,8 @@ This project targets Python 3.6 or later.
 ### Type hints
 
 Python objects should be typed where applicable. For the Rust code,
-an external type stub must be maintained; if the `to_svg` arguments
-are changed, or new arguments are added, make sure to update `_svgbob.pyi`
-as well.
+an external type stub must be maintained; make sure to update `pyskani/_skani.pyi`
+file as well when making changes to the Python interface.
 
 ### Interfacing with Rust
 
