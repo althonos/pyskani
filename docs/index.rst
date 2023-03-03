@@ -59,8 +59,8 @@ Overview
 --------
 
 ``skani`` is a method developed by `Jim Shaw <https://jim-shaw-bluenote.github.io/>`_
-and `Yun William Yu <https://github.com/yunwilliamyu>`_ for fast and robust 
-metagenomic sequence comparison through sparse chaining. It improves on 
+and `Yun William Yu <https://github.com/yunwilliamyu>`_ for fast and robust
+metagenomic sequence comparison through sparse chaining. It improves on
 FastANI by being more accurate and much faster, while requiring less memory.
 
 ``pyskani`` is a Python module, implemented using the `PyO3 <https://pyo3.rs/>`_
@@ -74,7 +74,7 @@ framework, that provides bindings to ``skani``. It directly links to the
   your project, and stop worrying about the ``skani`` binary being present on
   the end-user machine.
 - **sans I/O**: Everything happens in memory, in Python objects you control,
-  making it easier to pass your sequences to ``skani`` without having to write 
+  making it easier to pass your sequences to ``skani`` without having to write
   them to a temporary file.
 
 
@@ -103,14 +103,14 @@ License
 
 This library is provided under the `MIT License <https://choosealicense.com/licenses/mit/>`_.
 
-The fastANI code was written by `Jim Shaw <https://jim-shaw-bluenote.github.io/>`_
+The ``skani`` code was written by `Jim Shaw <https://jim-shaw-bluenote.github.io/>`_
 and is distributed under the terms of the
-`MIT License <https://choosealicense.com/licenses/mit/>`_ as well. Source 
-distributions of ``pyskani`` vendors additional sources under their own terms
-using the ``cargo vendor`` command.
+`MIT License <https://choosealicense.com/licenses/mit/>`_ as well. Source
+distributions of ``pyskani`` may vendors additional sources under their
+own terms using the ``cargo vendor`` command.
 
 *This project is in no way not affiliated, sponsored, or otherwise endorsed by
-the original* ``skani`` *authors. It was developed by* 
+the original* ``skani`` *authors. It was developed by*
 `Martin Larralde <https://github.com/althonos>`_ *during his
 PhD project at the* `European Molecular Biology Laboratory <https://www.embl.de/>`_
 *in the* `Zeller team <https://github.com/zellerlab>`_.

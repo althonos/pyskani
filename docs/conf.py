@@ -56,6 +56,11 @@ if "See Also:" in doc_lines:
     see_also = doc_lines.index("See Also:")
     pyskani.__doc__ = "\n".join(doc_lines[:see_also])
 
+# Expose skani version
+rst_epilog  = f"""
+.. |SKANI_VERSION| replace:: :strong:`v{pyskani.SKANI_VERSION}`
+.. _`SKANI_VERSION`: https://github.com/bluenote-1577/skani/releases/tag/v{pyskani.SKANI_VERSION}
+"""
 
 
 # -- General configuration ---------------------------------------------------
