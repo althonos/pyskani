@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 
-use pyo3::prelude::*;
 use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::PyRuntimeError;
-use pyo3::types::PyString;
+use pyo3::prelude::*;
 use pyo3::types::PyBytes;
+use pyo3::types::PyString;
 
 /// Try to obtain a path from a Python object using `os.fsdecode`.
 pub fn fsdecode<'py>(object: &'py PyAny) -> PyResult<&PyString> {
@@ -31,7 +31,7 @@ pub fn as_bytes<'py>(object: &'py PyAny) -> PyResult<Cow<'py, [u8]>> {
     }
 }
 
-/// Create a new error 
+/// Create a new error
 pub fn poisoned_lock_error() -> PyErr {
     PyRuntimeError::new_err("Poisoned lock")
 }

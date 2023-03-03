@@ -12,7 +12,6 @@ mod build {
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
-use std::sync::RwLock;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -20,6 +19,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::RwLock;
 
 use pyo3::exceptions::PyFileExistsError;
 use pyo3::exceptions::PyKeyError;
@@ -98,6 +98,13 @@ impl DatabaseStorage {
     }
 }
 
+/// A database storing sketched genomes.
+///
+/// The database contains two different sketch collections with different
+/// compression levels: marker sketches, which are heavily compressed, and
+/// always kept in memory; and genome sketches, which take more memory, but
+/// may be stored inside an external file.
+///
 #[pyclass(module = "pyskani._skani")]
 pub struct Database {
     params: SketchParams,
@@ -428,7 +435,7 @@ impl Database {
     ///
     /// Arguments:
     ///     name (`object`): The name of the reference genome to add.
-    ///     contigs (`str`, `bytes`, `bytearray` or `memoryview`): The contigs 
+    ///     contigs (`str`, `bytes`, `bytearray` or `memoryview`): The contigs
     ///         of the reference genome.
     ///
     #[pyo3(signature = (name, *contigs, seed=true))]
@@ -438,19 +445,17 @@ impl Database {
             .into_iter()
             .map(|item| self::utils::as_bytes(item))
             .collect::<PyResult<Vec<_>>>()?;
-        let views = contents.iter()
-            .map(|cow| cow.as_ref());
+        let views = contents.iter().map(|cow| cow.as_ref());
 
         // Release the GIL while sketching
         let py = contigs.py();
         let (sketch, marker) = py.allow_threads(|| {
-            self._sketch(name, views, seed)
-                .map(|sketch| {
-                    let marker = skani::types::Sketch::get_markers_only(sketch.as_ref()).into();
-                    (sketch, marker)
-                })
+            self._sketch(name, views, seed).map(|sketch| {
+                let marker = skani::types::Sketch::get_markers_only(sketch.as_ref()).into();
+                (sketch, marker)
+            })
         })?;
-          
+
         // Record sketches
         self.markers
             .write()
@@ -467,7 +472,7 @@ impl Database {
     ///      
     /// Arguments:
     ///     name (`str`): The name of the query genome.
-    ///     contigs (`str`, `bytes`, `bytearray` or `memoryview`): The contigs 
+    ///     contigs (`str`, `bytes`, `bytearray` or `memoryview`): The contigs
     ///         of the query genome.
     ///
     /// Keyword Arguments:
@@ -498,11 +503,10 @@ impl Database {
     ) -> PyResult<Vec<Hit>> {
         // Get a view on the contigs
         let contents = contigs
-        .into_iter()
-        .map(|item| self::utils::as_bytes(item))
-        .collect::<PyResult<Vec<_>>>()?;
-        let views = contents.iter()
-        .map(|cow| cow.as_ref());
+            .into_iter()
+            .map(|item| self::utils::as_bytes(item))
+            .collect::<PyResult<Vec<_>>>()?;
+        let views = contents.iter().map(|cow| cow.as_ref());
         // Release the GIL while querying
         let py = contigs.py();
         py.allow_threads(move || {
@@ -525,7 +529,8 @@ impl Database {
                 max_results: 1_000_000_000,
                 individual_contig_q: false,
                 individual_contig_r: false,
-                min_aligned_frac: skani::params::D_FRAC_COVER_CUTOFF.parse::<f64>().unwrap() / 100.0,
+                min_aligned_frac: skani::params::D_FRAC_COVER_CUTOFF.parse::<f64>().unwrap()
+                    / 100.0,
                 keep_refs: true,
                 est_ci: Default::default(),
                 learned_ani_cmd: learned_ani.is_some(),
@@ -534,16 +539,21 @@ impl Database {
             };
             // Search marker sketches first
             let mut shortlist = HashSet::new();
-            for marker in self.markers.read().map_err(|_| self::utils::poisoned_lock_error())?.iter() {
+            for marker in self
+                .markers
+                .read()
+                .map_err(|_| self::utils::poisoned_lock_error())?
+                .iter()
+            {
                 if skani::chain::check_markers_quickly(
                     query.as_ref(),
                     marker.as_ref(),
                     command_params.screen_val,
                 ) {
                     let name = Path::new(&marker.as_ref().file_name)
-                    .file_name()
-                    .unwrap()
-                    .to_os_string()
+                        .file_name()
+                        .unwrap()
+                        .to_os_string()
                         .into_string()
                         .unwrap();
                     shortlist.insert(name);
@@ -552,7 +562,9 @@ impl Database {
             // Search full sketches
             let mut hits = Vec::new();
             for name in shortlist.iter() {
-                let guard = self.sketches.read()
+                let guard = self
+                    .sketches
+                    .read()
                     .map_err(|_| self::utils::poisoned_lock_error())?;
                 let reference = &*guard.load(&name)?;
                 let map_params = skani::chain::map_params_from_sketch(
@@ -560,7 +572,8 @@ impl Database {
                     self.params.use_aa,
                     &command_params,
                 );
-                let ani_res = skani::chain::chain_seeds(reference.as_ref(), query.as_ref(), map_params);
+                let ani_res =
+                    skani::chain::chain_seeds(reference.as_ref(), query.as_ref(), map_params);
                 if ani_res.ani > 0.5 {
                     hits.push(Hit::from(ani_res));
                 }
@@ -627,7 +640,14 @@ impl Database {
                     sketch_path.display().to_string(),
                 ));
             }
-            self._save_sketch(sketch_path, &*self.sketches.read().map_err(|_| self::utils::poisoned_lock_error())?.load(&name)?)?;
+            self._save_sketch(
+                sketch_path,
+                &*self
+                    .sketches
+                    .read()
+                    .map_err(|_| self::utils::poisoned_lock_error())?
+                    .load(&name)?,
+            )?;
         }
         Ok(())
     }

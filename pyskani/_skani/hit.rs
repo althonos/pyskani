@@ -6,7 +6,8 @@ use skani::types::AniEstResult;
 /// A single hit found when querying a `~pyskani.Database` with a genome.
 ///
 /// Attributes:
-///     identity (`float`):
+///     identity (`float`): The estimated Average Nucleotide Identity
+///         between the query and reference genomes.
 ///     query_name (`str`): The name of the query genome.
 ///     reference_name (`str`): The name of the reference genome.
 ///     query_fraction (`float`): The fraction of the query sequence

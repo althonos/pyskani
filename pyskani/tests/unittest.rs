@@ -10,7 +10,6 @@ use pyo3::types::PyList;
 use pyo3::types::PyModule;
 use pyo3::Python;
 
-
 pub fn main() -> PyResult<()> {
     // get the relative path to the project folder
     let folder = Path::new(file!())
@@ -24,7 +23,7 @@ pub fn main() -> PyResult<()> {
     // spawn a Python interpreter
     pyo3::prepare_freethreaded_python();
     Python::with_gil(|py| {
-        // insert the project folder in `sys.modules` so that 
+        // insert the project folder in `sys.modules` so that
         // the main module can be imported by Python
         let sys = py.import("sys").unwrap();
         sys.getattr("path")
@@ -48,10 +47,9 @@ pub fn main() -> PyResult<()> {
         let mut kwargs = PyDict::new(py);
         kwargs.set_item("exit", false).unwrap();
         kwargs.set_item("verbosity", 2u8).unwrap();
-        py.import("unittest").unwrap().call_method(
-            "TestProgram",
-            ("pyskani.tests",),
-            Some(kwargs),
-        ).map(|_| ())
+        py.import("unittest")
+            .unwrap()
+            .call_method("TestProgram", ("pyskani.tests",), Some(kwargs))
+            .map(|_| ())
     })
 }
