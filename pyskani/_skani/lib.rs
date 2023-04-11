@@ -581,7 +581,7 @@ impl Database {
             // Apply regression model for ANI correction
             // FIXME: maybe pre-load model, to avoid having to deserialize on every query?
             let learned = learned_ani.unwrap_or_else(|| {
-                skani::parse::use_learned_ani(self.params.c, false, false, robust, median)
+                skani::regression::use_learned_ani(self.params.c, false, false, robust, median)
             });
             if let Some(ref model) = skani::regression::get_model(self.params.c, learned) {
                 for hit in hits.iter_mut() {
