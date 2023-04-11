@@ -16,7 +16,7 @@ noextract=()
 sha256sums=(%sha256sum)
 
 prepare() {
-    cargo fetch --target "$CARCH-unknown-linux-gnu"
+    cargo fetch --manifest-path "${srcdir}/${_name}-${pkgver}/Cargo.toml" --target "$CARCH-unknown-linux-gnu"
 }
 
 build() {
