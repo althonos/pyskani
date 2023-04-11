@@ -6,7 +6,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 
 ## [Unreleased]
-[Unreleased]: https://github.com/althonos/pyskani/compare/a851bd...HEAD
+[Unreleased]: https://github.com/althonos/pyskani/compare/v0.1.1...HEAD
+
+
+## [v0.1.1] - 2023-04-11
+[v0.1.1]: https://github.com/althonos/pyskani/compare/v0.1.0...v0.1.1
+
+### Changed
+- Bumped `skani` to `v0.1.1`.
+- Use read-write locks for synchronizing database contents.
+
+### Fixed
+- Generation of AUR package in GitHub Actions workflow.
+
+### Docs
+- Display the wrapped `skani` version in the Sphinx documentation.
 
 
 ## [v0.1.0] - 2023-02-09
