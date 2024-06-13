@@ -118,6 +118,7 @@ jobs:
         CIBW_BUILD_VERBOSITY: 2
         CIBW_ENVIRONMENT: CARGO_NET_GIT_FETCH_WITH_CLI=true
         CIBW_TEST_COMMAND: python -m unittest pyskani.tests
+        CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=11.0
       with:
         output-dir: dist
     - uses: actions/upload-artifact@v3
@@ -153,6 +154,7 @@ jobs:
         CIBW_BUILD_VERBOSITY: 2
         CIBW_ENVIRONMENT: CARGO_NET_GIT_FETCH_WITH_CLI=true
         CIBW_TEST_COMMAND: python -m unittest pyskani.tests
+        CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=11.0
       with:
         output-dir: dist
     - uses: actions/upload-artifact@v3
