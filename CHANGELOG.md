@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 [Unreleased]: https://github.com/althonos/pyskani/compare/v0.1.1...HEAD
 
 
+## [v0.1.2] - 2023-04-11
+[v0.1.2]: https://github.com/althonos/pyskani/compare/v0.1.1...v0.1.2
+
+### Changed
+- Bumped `pyo3` to `v0.21.0`.
+
+### Added
+- Wheels for CPython 3.12 and PyPy 3.10.
+
+
 ## [v0.1.1] - 2023-04-11
 [v0.1.1]: https://github.com/althonos/pyskani/compare/v0.1.0...v0.1.1
 

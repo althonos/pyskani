@@ -1095,7 +1095,7 @@ dependencies = [
 
 [[package]]
 name = "pyskani"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "bincode",
  "built",
