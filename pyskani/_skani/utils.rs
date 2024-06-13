@@ -5,6 +5,7 @@ use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
 use pyo3::pybacked::PyBackedBytes;
 use pyo3::pybacked::PyBackedStr;
+use pyo3::types::PyByteArray;
 use pyo3::types::PyBytes;
 use pyo3::types::PyString;
 
@@ -24,9 +25,11 @@ pub enum Text {
 
 impl Text {
     pub fn new<'py>(object: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
-        if object.downcast::<PyString>().is_ok() {
-            PyBackedStr::from_py_object_bound(object).map(Text::Str)
+        if let Ok(str) = object.downcast::<PyString>() {
+            Ok(Text::Str(PyBackedStr::try_from(str.clone())?))
         } else if let Ok(bytes) = object.downcast::<PyBytes>() {
+            Ok(Text::Bytes(PyBackedBytes::from(bytes.clone())))
+        } else if let Ok(bytes) = object.downcast::<PyByteArray>() {
             Ok(Text::Bytes(PyBackedBytes::from(bytes.clone())))
         } else {
             let buffer = PyBuffer::get_bound(&object)?;
