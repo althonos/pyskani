@@ -229,12 +229,12 @@ impl Database {
     ///
     #[classmethod]
     #[allow(unused)]
-    pub fn load(cls: &PyType, path: &PyAny) -> PyResult<Self> {
-        // obtain Unicode representation of path
-        let path = self::utils::fsdecode(path)?;
-
+    pub fn load<'py>(cls: &Bound<'py, PyType>, path: &Bound<'py, PyAny>) -> PyResult<Self> {
         // load marker genes like in `Database.open`.
         let mut db = Self::open(cls, path)?;
+
+        // obtain Unicode representation of path
+        let path = self::utils::fsdecode(path)?;
 
         // load reference sketches
         let mut sketches = HashMap::new();
@@ -298,7 +298,7 @@ impl Database {
     ///
     #[classmethod]
     #[allow(unused)]
-    pub fn open(cls: &PyType, path: &PyAny) -> PyResult<Self> {
+    pub fn open<'py>(cls: &Bound<'py, PyType>, path: &Bound<'py, PyAny>) -> PyResult<Self> {
         // obtain Unicode representation of path
         let path = self::utils::fsdecode(path)?;
 
@@ -355,8 +355,8 @@ impl Database {
     ///
     #[new]
     #[pyo3(signature = (path=None, *, compression=125, marker_compression=1000, k=15))]
-    pub fn __init__(
-        path: Option<&PyAny>,
+    pub fn __init__<'py>(
+        path: Option<&Bound<'py, PyAny>>,
         compression: usize,
         marker_compression: usize,
         k: usize,
@@ -401,11 +401,11 @@ impl Database {
     }
 
     #[allow(unused_variables)]
-    pub fn __exit__(
+    pub fn __exit__<'py>(
         &self,
-        exc_type: &PyAny,
-        exc_value: &PyAny,
-        traceback: &PyAny,
+        exc_type: &Bound<'py, PyAny>,
+        exc_value: &Bound<'py, PyAny>,
+        traceback: &Bound<'py, PyAny>,
     ) -> PyResult<bool> {
         self.flush()?;
         Ok(false)
@@ -418,7 +418,7 @@ impl Database {
             match *sketches {
                 DatabaseStorage::Memory(_) => Ok(py.None()),
                 DatabaseStorage::Folder(ref folder) => {
-                    let pathlib = py.import(pyo3::intern!(py, "pathlib"))?;
+                    let pathlib = py.import_bound(pyo3::intern!(py, "pathlib"))?;
                     let path = pathlib.call_method1(pyo3::intern!(py, "Path"), (folder,))?;
                     Ok(path.to_object(py))
                 }
@@ -439,13 +439,18 @@ impl Database {
     ///         of the reference genome.
     ///
     #[pyo3(signature = (name, *contigs, seed=true))]
-    pub fn sketch(&mut self, name: String, contigs: &PyTuple, seed: bool) -> PyResult<()> {
+    pub fn sketch<'py>(
+        &mut self,
+        name: String,
+        contigs: &Bound<'py, PyTuple>,
+        seed: bool,
+    ) -> PyResult<()> {
         // Get a view on the contigs
         let contents = contigs
             .into_iter()
-            .map(|item| self::utils::as_bytes(item))
+            .map(|item| self::utils::Text::new(item.as_borrowed()))
             .collect::<PyResult<Vec<_>>>()?;
-        let views = contents.iter().map(|cow| cow.as_ref());
+        let views = contents.iter().map(|text| text.as_bytes());
 
         // Release the GIL while sketching
         let py = contigs.py();
@@ -492,10 +497,10 @@ impl Database {
     ///     `list` of `~pyskani.Hit`: The hits found for the query.
     ///   
     #[pyo3(signature = (name, *contigs, seed=true, learned_ani=None, median=false, robust=false))]
-    pub fn query(
+    pub fn query<'py>(
         &self,
         name: String,
-        contigs: &PyTuple,
+        contigs: Bound<'py, PyTuple>,
         seed: bool,
         learned_ani: Option<bool>,
         median: bool,
@@ -503,10 +508,10 @@ impl Database {
     ) -> PyResult<Vec<Hit>> {
         // Get a view on the contigs
         let contents = contigs
-            .into_iter()
-            .map(|item| self::utils::as_bytes(item))
+            .iter()
+            .map(|item| self::utils::Text::new(item.as_borrowed()))
             .collect::<PyResult<Vec<_>>>()?;
-        let views = contents.iter().map(|cow| cow.as_ref());
+        let views = contents.iter().map(|text| text.as_bytes());
         // Release the GIL while querying
         let py = contigs.py();
         py.allow_threads(move || {
@@ -594,7 +599,7 @@ impl Database {
 
     /// Save the database to the given path.
     #[pyo3(signature = (path, overwrite=false))]
-    pub fn save(&self, path: &PyAny, overwrite: bool) -> PyResult<()> {
+    pub fn save<'py>(&self, path: &Bound<'py, PyAny>, overwrite: bool) -> PyResult<()> {
         // obtain Unicode representation of path
         let path = self::utils::fsdecode(path)?;
 
@@ -677,7 +682,7 @@ impl Database {
 ///
 #[pymodule]
 #[pyo3(name = "_skani")]
-pub fn init(py: Python, m: &PyModule) -> PyResult<()> {
+pub fn init<'py>(py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()> {
     m.add("__package__", "pyskani")?;
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add("__author__", env!("CARGO_PKG_AUTHORS").replace(':', "\n"))?;
