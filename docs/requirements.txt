@@ -9,8 +9,8 @@ recommonmark ~=0.7
 pygments-style-monokailight ~=0.4
 ipython ~=7.19
 pygments ~=2.4
-nbsphinx ~=0.8
-ipykernel ~=6.0
+# nbsphinx ~=0.8
+# ipykernel ~=6.0
 
 # sphinx-bootstrap-theme ~=0.7 with patched admonition
 https://github.com/althonos/sphinx-bootstrap-theme/archive/master.zip
