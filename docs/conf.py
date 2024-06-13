@@ -79,7 +79,7 @@ extensions = [
     "sphinx.ext.extlinks",
     "sphinx_bootstrap_theme",
     "recommonmark",
-    "nbsphinx",
+    #"nbsphinx",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
