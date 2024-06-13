@@ -2,7 +2,6 @@ extern crate pyo3;
 extern crate pyskani;
 
 use std::path::Path;
-use std::sync::Mutex;
 
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -44,7 +43,7 @@ pub fn main() -> PyResult<()> {
             .unwrap();
 
         // run unittest on the tests
-        let mut kwargs = PyDict::new_bound(py);
+        let kwargs = PyDict::new_bound(py);
         kwargs.set_item("exit", false).unwrap();
         kwargs.set_item("verbosity", 2u8).unwrap();
         py.import_bound("unittest")

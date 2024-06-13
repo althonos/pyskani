@@ -1,7 +1,5 @@
 use pyo3::buffer::PyBuffer;
-use pyo3::conversion::FromPyObjectBound;
 use pyo3::exceptions::PyRuntimeError;
-use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
 use pyo3::pybacked::PyBackedBytes;
 use pyo3::pybacked::PyBackedStr;
