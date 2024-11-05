@@ -16,6 +16,7 @@ build = "src/pyskani/_skani/build.rs"
 [lib]
 crate-type = ["cdylib", "rlib"]
 path = "src/pyskani/_skani/lib.rs"
+doctest = false
 
 [build-dependencies.built]
 version = "0.7.3"
@@ -23,7 +24,7 @@ features = ["chrono", "cargo-lock"]
 
 [dependencies]
 bincode = "1.3.3"
-pyo3 = "0.21.2"
+pyo3 = "0.22.5"
 pyo3-built = "0.5.0"
 
 [dependencies.skani]
@@ -37,5 +38,5 @@ nightly = ["pyo3/nightly"]
 
 [[test]]
 name = "unittest"
-path = "pyskani/tests/unittest.rs"
+path = "src/pyskani/tests/unittest.rs"
 harness = false

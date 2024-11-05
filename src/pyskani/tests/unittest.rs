@@ -17,7 +17,8 @@ pub fn main() -> PyResult<()> {
         .parent()
         .unwrap()
         .parent()
-        .unwrap();
+        .unwrap()
+        .join("src");
 
     // spawn a Python interpreter
     pyo3::prepare_freethreaded_python();
