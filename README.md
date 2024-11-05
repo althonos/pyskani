@@ -21,14 +21,14 @@
 
 ## 🗺️ Overview
 
-`skani` is a method developed by [Jim Shaw](https://jim-shaw-bluenote.github.io/)
+`skani`[\[1\]](#ref1) is a method developed by [Jim Shaw](https://jim-shaw-bluenote.github.io/)
 and [Yun William Yu](https://github.com/yunwilliamyu) for fast and robust
 metagenomic sequence comparison through sparse chaining. It improves on
 FastANI by being more accurate and much faster, while requiring less memory.
 
 `pyskani` is a Python module, implemented using the [PyO3](https://pyo3.rs/)
 framework, that provides bindings to `skani`. It directly links to the
-``skani`` code, which has the following advantages over CLI wrappers:
+`skani` code, which has the following advantages over CLI wrappers:
 
 - **pre-built wheels**: `pyskani` is distributed on PyPI and features
   pre-built wheels for common platforms, including x86-64 and Arm64 UNIX.
@@ -62,6 +62,12 @@ In the event you have to compile the package from source, all the required
 Rust libraries are vendored in the source distribution, and a Rust compiler
 will be setup automatically if there is none on the host machine.
 
+## 🔖 Citation
+
+Pyskani is scientific software, and builds on top of `skani`. Please cite [`skani`](https://github.com/bluenote-1577/skani) if you are using it in
+an academic work, for instance as:
+
+> `pyskani`, a Python library binding to `skani` (Shaw & Yu, 2023).
 
 ## 💡 Examples
 
@@ -151,3 +157,7 @@ by the [original `skani` authors](https://jim-shaw-bluenote.github.io/).
 It was developed by [Martin Larralde](https://github.com/althonos/) during his
 PhD project at the [European Molecular Biology Laboratory](https://www.embl.de/)
 in the [Zeller team](https://github.com/zellerlab).*
+
+## 📚 References
+
+- <a id="ref1">\[1\]</a> Jim Shaw and Yun William Yu. ast and robust metagenomic sequence comparison through sparse chaining with skani (2023). Nature Methods. [doi:10.1038/s41592-023-02018-3](https://doi.org/10.1038/s41592-023-02018-3). [PMID:37735570](https://pubmed.ncbi.nlm.nih.gov/37735570/).
