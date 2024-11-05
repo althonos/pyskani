@@ -538,9 +538,12 @@ impl Database {
                     / 100.0,
                 keep_refs: true,
                 est_ci: Default::default(),
-                learned_ani_cmd: learned_ani.is_some(),
+                // learned_ani_cmd: learned_ani.is_some(),
                 learned_ani: learned_ani.unwrap_or(false),
                 detailed_out: false,
+                diagonal: false,
+                distance: false,
+                rescue_small: false,
             };
             // Search marker sketches first
             let mut shortlist = HashSet::new();
@@ -550,10 +553,11 @@ impl Database {
                 .map_err(|_| self::utils::poisoned_lock_error())?
                 .iter()
             {
-                if skani::chain::check_markers_quickly(
+                if skani::screen::check_markers_quickly(
                     query.as_ref(),
                     marker.as_ref(),
                     command_params.screen_val,
+                    false // FIXME: rescue small
                 ) {
                     let name = Path::new(&marker.as_ref().file_name)
                         .file_name()
@@ -576,6 +580,7 @@ impl Database {
                     reference.as_ref(),
                     self.params.use_aa,
                     &command_params,
+                    &None // FIXME
                 );
                 let ani_res =
                     skani::chain::chain_seeds(reference.as_ref(), query.as_ref(), map_params);
@@ -586,7 +591,7 @@ impl Database {
             // Apply regression model for ANI correction
             // FIXME: maybe pre-load model, to avoid having to deserialize on every query?
             let learned = learned_ani.unwrap_or_else(|| {
-                skani::regression::use_learned_ani(self.params.c, false, false, robust, median)
+                skani::regression::use_learned_ani(self.params.c, false, false, median)
             });
             if let Some(ref model) = skani::regression::get_model(self.params.c, learned) {
                 for hit in hits.iter_mut() {

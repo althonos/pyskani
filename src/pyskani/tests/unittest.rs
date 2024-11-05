@@ -18,6 +18,8 @@ pub fn main() -> PyResult<()> {
         .unwrap()
         .parent()
         .unwrap()
+        .parent()
+        .unwrap()
         .join("src");
 
     // spawn a Python interpreter

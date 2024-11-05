@@ -51,7 +51,7 @@ class TestAniEC590(unittest.TestCase):
         self.assertEqual(len(hits), 1)
         self.assertAlmostEqual(hits[0].reference_fraction, 0.9246, places=4)
         self.assertAlmostEqual(hits[0].query_fraction, 0.9189, places=4)
-        self.assertAlmostEqual(hits[0].identity, 0.9978, places=4)
+        self.assertAlmostEqual(hits[0].identity, 0.9977, places=4)
 
     def test_median(self):
         hits = self.db.query("K12", self.query.seq.encode("ascii"), median=True)
