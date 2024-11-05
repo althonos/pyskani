@@ -1,6 +1,4 @@
-setuptools >=41.0
-wheel
-setuptools-rust
+maturin
 requests
 auditwheel
 build
