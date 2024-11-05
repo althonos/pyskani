@@ -3,13 +3,19 @@ name = "pyskani"
 version = "0.1.2"
 authors = ["Martin Larralde <martin.larralde@embl.de>"]
 license = "MIT"
+description = "PyO3 bindings and Python interface to skani, a method for fast fast genomic identity calculation using sparse chaining."
+repository = "https://github.com/althonos/pyskani"
+homepage = "https://github.com/althonos/pyskani/"
+readme = "README.md"
+categories = ["science"]
+keywords = ["bioinformatics", "genomics", "average", "nucleotide", "identity"]
 publish = false
 edition = "2021"
-build = "pyskani/_skani/build.rs"
+build = "src/pyskani/_skani/build.rs"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
-path = "pyskani/_skani/lib.rs"
+path = "src/pyskani/_skani/lib.rs"
 
 [build-dependencies.built]
 version = "0.7.3"
