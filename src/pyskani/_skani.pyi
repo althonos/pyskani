@@ -11,9 +11,15 @@ __version__: str
 __author__: str
 __build__: Dict[str, object]
 
-
 class Hit:
-    def __init__(self, identity: float, query_name: str, query_fraction: float, reference_name: str, reference_fraction: float) -> None: ...
+    def __init__(
+        self,
+        identity: float,
+        query_name: str,
+        query_fraction: float,
+        reference_name: str,
+        reference_fraction: float,
+    ) -> None: ...
     def __repr__(self) -> str: ...
     @property
     def identity(self) -> float: ...
@@ -37,7 +43,6 @@ class Database:
     def load(cls, path: _Path) -> Database: ...
     @classmethod
     def open(cls, path: _Path) -> Database: ...
-
     def __init__(
         self,
         path: Union[str, bytes, os.PathLike[str], None] = None,
@@ -46,17 +51,24 @@ class Database:
         marker_compression: int = ...,
         k: int = ...,
     ) -> None: ...
-
     def __enter__(self) -> Database: ...
     def __exit__(
-        self, exc_type: Optional[Type[BaseException]], exc: Optional[BaseException], traceback: Optional[TracebackType]
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc: Optional[BaseException],
+        traceback: Optional[TracebackType],
     ) -> Optional[bool]: ...
-
     @property
     def path(self) -> Optional[Path]: ...
-
-    def sketch(self, name: str, *contigs: _Sequence) -> None: ...
-    def query(self, name: str, *contigs: _Sequence) -> List[Hit]: ...
-        
+    def sketch(self, name: str, *contigs: _Sequence, seed: bool = True) -> None: ...
+    def query(
+        self,
+        name: str,
+        *contigs: _Sequence,
+        seed: bool = True,
+        learned_ani: Optional[bool] = None,
+        median: bool = False,
+        robust: bool = False,
+    ) -> List[Hit]: ...
     def save(self, path: _Path) -> None: ...
     def flush(self) -> None: ...

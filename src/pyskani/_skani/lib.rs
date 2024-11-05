@@ -438,6 +438,10 @@ impl Database {
     ///     contigs (`str`, `bytes`, `bytearray` or `memoryview`): The contigs
     ///         of the reference genome.
     ///
+    /// Keyword Arguments:
+    ///     seed (`bool`): Compute seed positions while sketching 
+    ///         the query.
+    /// 
     #[pyo3(signature = (name, *contigs, seed=true))]
     pub fn sketch<'py>(
         &mut self,
@@ -481,8 +485,8 @@ impl Database {
     ///         of the query genome.
     ///
     /// Keyword Arguments:
-    ///     seed (`bool`): Use a seeded random number generator to ensure
-    ///         reproducibility of results.
+    ///     seed (`bool`): Compute seed positions while sketching 
+    ///         the query.
     ///     learned_ani (`bool` or `None`): Use a regression model to
     ///         compute ANI, using a model trained on MAGs. Pass `True`
     ///         or `False` to force enabling or disabling the model,
@@ -538,7 +542,6 @@ impl Database {
                     / 100.0,
                 keep_refs: true,
                 est_ci: Default::default(),
-                // learned_ani_cmd: learned_ani.is_some(),
                 learned_ani: learned_ani.unwrap_or(false),
                 detailed_out: false,
                 diagonal: false,
@@ -580,7 +583,7 @@ impl Database {
                     reference.as_ref(),
                     self.params.use_aa,
                     &command_params,
-                    &None // FIXME
+                    &None
                 );
                 let ani_res =
                     skani::chain::chain_seeds(reference.as_ref(), query.as_ref(), map_params);
