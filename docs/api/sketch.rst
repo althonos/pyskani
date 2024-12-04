@@ -1,10 +1,7 @@
-Database
-========
+Sketch
+======
 
 .. currentmodule:: pyskani
-
-Sketch
-------
 
 .. autoclass:: pyskani.Sketch
    :special-members: __init__

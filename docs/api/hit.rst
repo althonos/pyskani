@@ -1,10 +1,7 @@
-Database
-========
+Hit
+===
 
 .. currentmodule:: pyskani
-
-Sketch
-------
 
 .. autoclass:: pyskani.Hit
    :special-members: __init__

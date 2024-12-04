@@ -22,9 +22,9 @@ The version of ``skani`` wrapped in this version of ``pyskani`` is
 .. toctree::
    :hidden:
 
-   database <database>
-   sketch <sketch>
-   hit <hit>
+   Database <database>
+   Sketch <sketch>
+   Hit <hit>
 
 
 .. only:: html

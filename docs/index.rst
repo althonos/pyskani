@@ -81,9 +81,11 @@ framework, that provides bindings to ``skani``. It directly links to the
 Setup
 -----
 
+Pyskani is available for all modern Python versions supported by PyO3 (3.8+).
+
 Run ``pip install pyskani`` in a shell to download the latest release and all
 its dependencies from PyPi, or have a look at the
-:doc:`Installation page <install>` to find other ways to install ``pyskani``.
+:doc:`Installation page <guide/install>` to find other ways to install ``pyskani``.
 
 
 Library
@@ -92,11 +94,17 @@ Library
 .. toctree::
    :maxdepth: 2
 
-   Installation <install>
-   Contributing <contributing>
+   User Guide <guide/index>
    API Reference <api/index>
-   Changelog <changes>
 
+
+Related Projects
+----------------
+
+The following Python libraries may be of interest for bioinformaticians.
+
+.. include:: related.rst
+   
 
 License
 -------
