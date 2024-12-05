@@ -6,7 +6,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 
 ## [Unreleased]
-[Unreleased]: https://github.com/althonos/pyskani/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/althonos/pyskani/compare/v0.1.3...HEAD
+
+
+## [v0.1.3] - 2024-12-05
+[v0.1.3]: https://github.com/althonos/pyskani/compare/v0.1.2...v0.1.3
+
+### Changed
+- Bump `pyo3` dependency to `v0.22.5`.
+- Bump `skani` dependency to `v0.1.2`.
+- Use `maturin` instead of `setuptools-rust` to compile package.
+- Use PyData theme to render the Sphinx documentation to HTML.
+
+### Fixed
+- Missing documentation for some keyword arguments of `Database` methods.
 
 
 ## [v0.1.2] - 2023-04-11
