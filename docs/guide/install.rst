@@ -66,20 +66,18 @@ the repository and install the repository by running (with the admin rights):
     which may not even build, so consider using a versioned release instead.
 
 
-GitHub + ``setuptools``
-^^^^^^^^^^^^^^^^^^^^^^^
+GitHub + ``build``
+^^^^^^^^^^^^^^^^^^
 
 If you do not want to use ``pip``, you can still clone the repository and
-run the ``setup.py`` file manually, although you will need to install the
-build dependencies (mainly `setuptools-rust <https://pypi.org/project/setuptools-rust>`_)
-and have a working Rust compiler setup:
+use ``build`` and ``installer`` manually:
 
 .. code:: console
 
-   $ git clone https://github.com/althonos/pyskani
-   $ cd pyskani
-   $ python setup.py build_ext
-   # python setup.py install
+    $ git clone --recursive https://github.com/althonos/pyskani
+    $ cd pyskani
+    $ python -m build .
+    # python -m installer dist/*.whl
 
 .. Danger::
 
