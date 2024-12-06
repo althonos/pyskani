@@ -22,16 +22,16 @@ one is available, or from source after compiling the Cython code :
    $ pip install --user pyskani
 
 
-.. Conda
-.. ^^^^^
+Conda
+^^^^^
 
-.. `pyskani` is also available as a `recipe <https://anaconda.org/bioconda/pyskani>`_
-.. in the `bioconda <https://bioconda.github.io/>`_ channel. To install, simply
-.. use the ``conda`` installer:
+`pyskani` is also available as a `recipe <https://anaconda.org/bioconda/pyskani>`_
+in the `bioconda <https://bioconda.github.io/>`_ channel. To install, simply
+use the ``conda`` installer:
 
-.. .. code:: console
+.. code:: console
 
-..    $ conda install -c bioconda pyskani
+   $ conda install -c bioconda pyskani
 
 
 Arch User Repository
