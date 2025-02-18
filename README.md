@@ -64,10 +64,14 @@ will be setup automatically if there is none on the host machine.
 
 ## 🔖 Citation
 
-Pyskani is scientific software, and builds on top of `skani`. Please cite [`skani`](https://github.com/bluenote-1577/skani) if you are using it in
-an academic work, for instance as:
+Pyskani is scientific software; it is submitted for publication
+and is currently available as a [pre-print on bioRxiv](https://www.biorxiv.org/content/10.1101/2025.02.13.638148v1).
+Please cite both [Pyskani](https://www.biorxiv.org/content/10.1101/2025.02.13.638148v1)
+and [`skani`](https://github.com/bluenote-1577/skani) if you are using it in an academic work,
+for instance as:
 
-> `pyskani`, a Python library binding to `skani` (Shaw & Yu, 2023).
+> `pyskani` (Larralde *et al.*, 2024), a Python library binding to `skani` (Shaw & Yu, 2023).
+
 
 ## 💡 Examples
 
