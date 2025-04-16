@@ -17,7 +17,7 @@
 [![Docs](https://img.shields.io/readthedocs/pyskani/latest?style=flat-square&maxAge=600)](https://pyskani.readthedocs.io)
 [![Changelog](https://img.shields.io/badge/keep%20a-changelog-8A0707.svg?maxAge=2678400&style=flat-square)](https://github.com/althonos/pyskani/blob/master/CHANGELOG.md)
 [![Downloads](https://img.shields.io/pypi/dm/pyskani?style=flat-square&color=303f9f&maxAge=86400&label=downloads)](https://pepy.tech/project/pyskani)
-
+[![Preprint](https://img.shields.io/badge/preprint-bioRxiv-darkblue?style=flat-square&maxAge=2678400)](https://www.biorxiv.org/content/10.1101/2025.02.13.638148v1)
 
 ## 🗺️ Overview
 
