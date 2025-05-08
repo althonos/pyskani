@@ -164,4 +164,4 @@ in the [Zeller team](https://github.com/zellerlab).*
 
 ## 📚 References
 
-- <a id="ref1">\[1\]</a> Jim Shaw and Yun William Yu. ast and robust metagenomic sequence comparison through sparse chaining with skani (2023). Nature Methods. [doi:10.1038/s41592-023-02018-3](https://doi.org/10.1038/s41592-023-02018-3). [PMID:37735570](https://pubmed.ncbi.nlm.nih.gov/37735570/).
+- <a id="ref1">\[1\]</a> Jim Shaw and Yun William Yu. 'Fast and robust metagenomic sequence comparison through sparse chaining with skani' (2023). Nature Methods. [doi:10.1038/s41592-023-02018-3](https://doi.org/10.1038/s41592-023-02018-3). [PMID:37735570](https://pubmed.ncbi.nlm.nih.gov/37735570/).
