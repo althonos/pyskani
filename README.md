@@ -64,14 +64,13 @@ will be setup automatically if there is none on the host machine.
 
 ## 🔖 Citation
 
-Pyskani is scientific software; it is submitted for publication
-and is currently available as a [pre-print on bioRxiv](https://www.biorxiv.org/content/10.1101/2025.02.13.638148v1).
-Please cite both [Pyskani](https://www.biorxiv.org/content/10.1101/2025.02.13.638148v1)
-and [`skani`](https://github.com/bluenote-1577/skani) if you are using it in an academic work,
-for instance as:
+If you found Pyskani useful, please cite [our paper](https://academic.oup.com/nargab/article/7/3/lqaf095/8196481), as well as the original [skani paper](https://www.nature.com/articles/s41592-023-02018-3).
 
-> `pyskani` (Larralde *et al.*, 2024), a Python library binding to `skani` (Shaw & Yu, 2023).
+To cite Pyskani:
+> Martin Larralde, Georg Zeller, Laura M. Carroll. 2025. PyOrthoANI, PyFastANI, and Pyskani: a suite of Python libraries for computation of average nucleotide identity. *NAR Genomics and Bioinformatics* 7(3):lqaf095. doi: 10.1093/nargab/lqaf095.
 
+To cite skani:
+> Jim Shaw, Yun William Yu. 2023. Fast and robust metagenomic sequence comparison through sparse chaining with skani. *Nature Methods* 20(11):1661-1665. doi: 10.1038/s41592-023-02018-3.
 
 ## 💡 Examples
 
