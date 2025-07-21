@@ -17,7 +17,7 @@
 [![Docs](https://img.shields.io/readthedocs/pyskani/latest?style=flat-square&maxAge=600)](https://pyskani.readthedocs.io)
 [![Changelog](https://img.shields.io/badge/keep%20a-changelog-8A0707.svg?maxAge=2678400&style=flat-square)](https://github.com/althonos/pyskani/blob/master/CHANGELOG.md)
 [![Downloads](https://img.shields.io/pypi/dm/pyskani?style=flat-square&color=303f9f&maxAge=86400&label=downloads)](https://pepy.tech/project/pyskani)
-[![Preprint](https://img.shields.io/badge/preprint-bioRxiv-darkblue?style=flat-square&maxAge=2678400)](https://www.biorxiv.org/content/10.1101/2025.02.13.638148v1)
+[![Paper](https://img.shields.io/badge/paper-nargab%2Flqaf095-darkblue?style=flat-square&maxAge=2678400)](https://academic.oup.com/nargab/article/7/3/lqaf095/8196481)
 
 ## 🗺️ Overview
 
@@ -67,10 +67,12 @@ will be setup automatically if there is none on the host machine.
 If you found Pyskani useful, please cite [our paper](https://academic.oup.com/nargab/article/7/3/lqaf095/8196481), as well as the original [skani paper](https://www.nature.com/articles/s41592-023-02018-3).
 
 To cite Pyskani:
-> Martin Larralde, Georg Zeller, Laura M. Carroll. 2025. PyOrthoANI, PyFastANI, and Pyskani: a suite of Python libraries for computation of average nucleotide identity. *NAR Genomics and Bioinformatics* 7(3):lqaf095. doi: 10.1093/nargab/lqaf095.
+
+> Martin Larralde, Georg Zeller, Laura M. Carroll. 2025. PyOrthoANI, PyFastANI, and Pyskani: a suite of Python libraries for computation of average nucleotide identity. *NAR Genomics and Bioinformatics* 7(3):lqaf095. doi:10.1093/nargab/lqaf095.
 
 To cite skani:
-> Jim Shaw, Yun William Yu. 2023. Fast and robust metagenomic sequence comparison through sparse chaining with skani. *Nature Methods* 20(11):1661-1665. doi: 10.1038/s41592-023-02018-3.
+
+> Jim Shaw, Yun William Yu. 2023. Fast and robust metagenomic sequence comparison through sparse chaining with skani. *Nature Methods* 20(11):1661-1665. doi:10.1038/s41592-023-02018-3.
 
 ## 💡 Examples
 
