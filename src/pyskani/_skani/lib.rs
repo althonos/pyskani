@@ -17,6 +17,8 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
+use std::io::Read;
+use std::io::Seek;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::RwLock;
@@ -32,6 +34,7 @@ use pyo3::types::PyType;
 use pyo3_built::pyo3_built;
 use skani::params::CommandParams;
 use skani::params::SketchParams;
+use skani::sketch_db::IndexEntry;
 
 use self::hit::Hit;
 use self::sketch::Sketch;
@@ -39,6 +42,7 @@ use self::sketch::Sketch;
 enum DatabaseStorage {
     Memory(HashMap<String, Sketch>),
     Folder(PathBuf),
+    Consolidated(PathBuf, HashMap<String, skani::sketch_db::IndexEntry>),
 }
 
 impl DatabaseStorage {
@@ -67,6 +71,7 @@ impl DatabaseStorage {
                     Err(err) => return Err(PyValueError::new_err(err.to_string())),
                 }
             }
+            DatabaseStorage::Consolidated(_, _) => unimplemented!(),
         }
     }
 
@@ -90,6 +95,30 @@ impl DatabaseStorage {
                     }
                 };
                 match bincode::deserialize_from::<_, (SketchParams, skani::types::Sketch)>(reader) {
+                    Err(err) => Err(PyValueError::new_err(err.to_string())),
+                    Ok((_, raw_sketch)) => Ok(Cow::Owned(Sketch::from(raw_sketch))),
+                }
+            }
+            DatabaseStorage::Consolidated(path, index) => {
+                let entry = match index.get(name) {
+                    Some(entry) => entry,
+                    None => return Err(PyKeyError::new_err(name.to_string())),
+                };
+                let mut reader = match File::open(&path.join("sketches.db")).map(BufReader::new) {
+                    Ok(reader) => reader,
+                    Err(err) => {
+                        return if let Some(code) = err.raw_os_error() {
+                            let msg = format!("Failed to open {}", path.display());
+                            Err(PyOSError::new_err((code, msg)))
+                        } else {
+                            Err(PyRuntimeError::new_err(err.to_string()))
+                        }
+                    }
+                };
+                let mut buffer = vec![0; entry.length as usize];
+                reader.seek_relative(entry.offset as i64)?;
+                reader.read_exact(&mut buffer)?;
+                match bincode::deserialize::<(SketchParams, skani::types::Sketch)>(&buffer) {
                     Err(err) => Err(PyValueError::new_err(err.to_string())),
                     Ok((_, raw_sketch)) => Ok(Cow::Owned(Sketch::from(raw_sketch))),
                 }
@@ -300,22 +329,29 @@ impl Database {
     #[classmethod]
     #[allow(unused)]
     pub fn open<'py>(cls: &Bound<'py, PyType>, path: &Bound<'py, PyAny>) -> PyResult<Self> {
-        // obtain Unicode representation of path
-        let path = self::utils::fsdecode(path)?;
-
-        // load marker sketches
-        let markers_path = Path::new(path.to_str()?).join("markers.bin");
-        let reader = match File::open(&markers_path).map(BufReader::new) {
-            Ok(reader) => reader,
-            Err(err) => {
-                return if let Some(code) = err.raw_os_error() {
-                    let msg = format!("Failed to open {}", markers_path.display());
-                    Err(PyOSError::new_err((code, msg)))
-                } else {
-                    Err(PyRuntimeError::new_err(err.to_string()))
+        macro_rules! open_or_fail {
+            ($path:ident) => {
+                match File::open(&$path).map(BufReader::new) {
+                    Ok(reader) => reader,
+                    Err(err) => {
+                        return if let Some(code) = err.raw_os_error() {
+                            let msg = format!("Failed to open {}", $path.display());
+                            Err(PyOSError::new_err((code, msg)))
+                        } else {
+                            Err(PyRuntimeError::new_err(err.to_string()))
+                        }
+                    }
                 }
             }
-        };
+        }
+
+        // obtain Unicode representation of path
+        let decoded = self::utils::fsdecode(path)?;
+        let fspath = Path::new(decoded.to_str()?);
+
+        // load marker sketches
+        let markers_path = fspath.join("markers.bin");
+        let reader = open_or_fail!(markers_path);
         let (params, raw_markers) =
             match bincode::deserialize_from::<_, (SketchParams, Vec<skani::types::Sketch>)>(reader)
             {
@@ -324,12 +360,28 @@ impl Database {
             };
         let markers = raw_markers.into_iter().map(Sketch::from).collect();
 
-        // use the folder for storage
-        Ok(Self {
-            params,
-            markers: RwLock::new(markers),
-            sketches: RwLock::new(DatabaseStorage::Folder(PathBuf::from(path.to_str()?))),
-        })
+        // identify whether this is a consolidated database or not
+        let index_path = fspath.join("index.db");
+        let sketches_path = fspath.join("sketches.db");
+        if index_path.exists() && sketches_path.exists() {
+            let reader = open_or_fail!(index_path);
+            let index = match bincode::deserialize_from::<_, Vec<skani::sketch_db::IndexEntry>>(reader) {
+                Ok(v) => v.into_iter().map(|entry| (entry.file_name.clone(), entry)).collect::<HashMap<_, _>>(),
+                Err(err) => return Err(PyValueError::new_err(err.to_string())),
+            };
+            Ok(Self {
+                params,
+                markers: RwLock::new(markers),
+                sketches: RwLock::new(DatabaseStorage::Consolidated(PathBuf::from(fspath), index)),
+            })
+        } else {
+            // use the folder for storage
+            Ok(Self {
+                params,
+                markers: RwLock::new(markers),
+                sketches: RwLock::new(DatabaseStorage::Folder(PathBuf::from(fspath))),
+            })
+        }
     }
 
     /// Create a new database.
@@ -418,7 +470,7 @@ impl Database {
         if let Ok(sketches) = self.sketches.read() {
             match *sketches {
                 DatabaseStorage::Memory(_) => Ok(py.None()),
-                DatabaseStorage::Folder(ref folder) => {
+                DatabaseStorage::Folder(ref folder) | DatabaseStorage::Consolidated(ref folder, _) => {
                     let pathlib = py.import_bound(pyo3::intern!(py, "pathlib"))?;
                     let path = pathlib.call_method1(pyo3::intern!(py, "Path"), (folder,))?;
                     Ok(path.to_object(py))
@@ -650,6 +702,8 @@ impl Database {
         }
         self._save_markers(markers_path)?;
 
+        // FIXME: Handle new consolidated format.
+
         // Serialize the sketches
         for filename in self
             .markers
@@ -695,6 +749,11 @@ impl Database {
                 DatabaseStorage::Folder(folder) => {
                     let path = folder.join("markers.bin");
                     self._save_markers(&path)
+                }
+                DatabaseStorage::Consolidated(folder, _) => {
+                    let path = folder.join("markers.bin");
+                    self._save_markers(&path)
+                    // FIXME: Is that it?
                 }
             }
         } else {

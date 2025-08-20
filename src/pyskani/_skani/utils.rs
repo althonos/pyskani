@@ -1,3 +1,7 @@
+use std::io::BufReader;
+use std::fs::File;
+use std::path::Path;
+
 use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
@@ -6,6 +10,7 @@ use pyo3::pybacked::PyBackedStr;
 use pyo3::types::PyByteArray;
 use pyo3::types::PyBytes;
 use pyo3::types::PyString;
+use pyo3::exceptions::PyOSError;
 
 /// Try to obtain a path from a Python object using `os.fsdecode`.
 pub fn fsdecode<'py>(object: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyString>> {
@@ -13,6 +18,21 @@ pub fn fsdecode<'py>(object: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyString
     py.import_bound(pyo3::intern!(py, "os"))?
         .call_method1(pyo3::intern!(py, "fsdecode"), (object,))
         .and_then(|x| x.extract())
+}
+
+/// Try to open a path or fail with Python error handling.
+pub fn buffered_open(path: &Path) -> PyResult<BufReader<File>> {
+    match File::open(&path).map(BufReader::new) {
+        Ok(reader) => Ok(reader),
+        Err(err) => {
+            return if let Some(code) = err.raw_os_error() {
+                let msg = format!("Failed to open {}", path.display());
+                Err(PyOSError::new_err((code, msg)))
+            } else {
+                Err(PyRuntimeError::new_err(err.to_string()))
+            }
+        }
+    }
 }
 
 pub enum Text {
@@ -49,3 +69,4 @@ impl Text {
 pub fn poisoned_lock_error() -> PyErr {
     PyRuntimeError::new_err("Poisoned lock")
 }
+
