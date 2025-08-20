@@ -16,6 +16,9 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::Read;
+use std::io::Seek;
+use std::io::Write;
+use std::ops::Index;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::RwLock;
@@ -58,7 +61,30 @@ impl DatabaseStorage {
                     Err(err) => return Err(PyValueError::new_err(err.to_string())),
                 }
             }
-            DatabaseStorage::Consolidated(_, _) => unimplemented!(),
+            DatabaseStorage::Consolidated(folder, index) => {
+                // ensure no duplicate names otherwise the hashmap is invalid
+                let name = &sketch.as_ref().file_name;
+                if index.contains_key(name) {
+                    return Err(PyValueError::new_err(format!("duplicate name in sketches: {:?}", name)));
+                }
+                println!("storing {:?} to {:?}", name, folder);
+                // serialize the sketches to a temporary buffer
+                let buffer = match bincode::serialize(&(params, sketch.as_ref())) {
+                    Ok(buffer) => buffer,
+                    Err(err) => return Err(PyValueError::new_err(err.to_string())),
+                };
+                // open the sketches file and create an index entry
+                let mut writer = utils::buffered_append(&folder.join("sketches.db"))?;
+                let index_entry = IndexEntry {
+                    file_name: name.clone(),
+                    offset: writer.stream_position()?,
+                    length: buffer.len() as u64,
+                };
+                // write the serialized sketches and the record the index entry
+                writer.write_all(&buffer)?;
+                index.insert(name.clone(), index_entry);
+                Ok(())
+            }
         }
     }
 
@@ -169,6 +195,20 @@ impl Database {
             }
         } else {
             Err(self::utils::poisoned_lock_error())
+        }
+    }
+
+    fn _save_index<P>(&self, path: P, index: &HashMap<String, IndexEntry>) -> PyResult<()>
+    where
+        P: AsRef<Path>,
+    {
+        let mut index_vec: Vec<&IndexEntry> = index.values().collect();
+        index_vec.sort_unstable_by_key(|entry| entry.offset);
+
+        let writer = utils::buffered_create(path.as_ref())?;
+        match bincode::serialize_into(writer, &index_vec) {
+            Ok(()) => Ok(()),
+            Err(err) => return Err(PyValueError::new_err(err.to_string())),
         }
     }
 
@@ -307,18 +347,26 @@ impl Database {
     ///         k-mers. Markers are used for filtering. You want at least ~100
     ///         markers, so ``genome_size/marker_compression > 100`` is highly
     ///         recommended. Higher value is more time/memory efficient.
+    ///     format (`str`): The database format to use. Use either 
+    ///         ``separated`` to write one sketch file per sketch genome
+    ///         (as in ``skani<0.3.0``), or ``consolidated`` (the default)
+    ///         to write a single sketch file (as in ``skani>=0.3.0``)
     ///
     /// Raises:
     ///     `OSError`: When a new folder could not be created.
     ///     `FileExistsError`: When the folder already contains sketches.
+    /// 
+    /// .. versionadded:: 0.2.0
+    ///     The ``format`` keyword argument.
     ///
     #[new]
-    #[pyo3(signature = (path=None, *, compression=125, marker_compression=1000, k=15))]
+    #[pyo3(signature = (path=None, *, compression=125, marker_compression=1000, k=15, format=None))]
     pub fn __init__<'py>(
         path: Option<&Bound<'py, PyAny>>,
         compression: usize,
         marker_compression: usize,
         k: usize,
+        format: Option<String>,
     ) -> PyResult<PyClassInitializer<Self>> {
         let storage = match path {
             None => DatabaseStorage::Memory(HashMap::new()),
@@ -343,8 +391,11 @@ impl Database {
                         buf.join("markers.bin").display().to_string(),
                     ));
                 }
-                // use folder for storage
-                DatabaseStorage::Folder(buf)
+                match format.as_ref().map(String::as_str).unwrap_or("consolidated") {
+                    "consolidated" => DatabaseStorage::Consolidated(buf, HashMap::new()),
+                    "separated" => DatabaseStorage::Folder(buf),
+                    other => return Err(PyValueError::new_err(format!("invalid format: {}", other))),
+                }
             }
         };
         let sketcher = Self {
@@ -642,7 +693,7 @@ impl Database {
         Ok(())
     }
 
-    /// Flush the database.
+    /// Flush the database buffers to disk.
     ///
     /// This does nothing for a database loaded in memory. For a database
     /// stored in a folder, this will save the markers into a file named
@@ -653,13 +704,12 @@ impl Database {
             match &*sketches {
                 DatabaseStorage::Memory(_) => Ok(()),
                 DatabaseStorage::Folder(folder) => {
-                    let path = folder.join("markers.bin");
-                    self._save_markers(&path)
+                    self._save_markers(folder.join("markers.bin"))
                 }
-                DatabaseStorage::Consolidated(folder, _) => {
-                    let path = folder.join("markers.bin");
-                    self._save_markers(&path)
-                    // FIXME: Is that it?
+                DatabaseStorage::Consolidated(folder, index) => {
+                    self._save_markers(folder.join("markers.bin"))?;
+                    self._save_index(folder.join("index.db"), index)?;
+                    Ok(())
                 }
             }
         } else {
