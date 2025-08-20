@@ -51,7 +51,7 @@ Pyskani |Stars|
 .. |Changelog| image:: https://img.shields.io/badge/keep%20a-changelog-8A0707.svg?maxAge=2678400&style=flat-square
    :target: https://github.com/althonos/pyskani/blob/main/CHANGELOG.md
 
-.. |Downloads| image:: https://img.shields.io/pypi/dm/pyrodigal?style=flat-square&color=303f9f&maxAge=86400&label=downloads
+.. |Downloads| image:: https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fpepy.tech%2Fprojects%2Fpyskani&search=%5B0-9%5D%2B.%5B0-9%5D%2B(k%7CM)&style=flat-square&label=downloads&color=303f9f&cacheSeconds=86400
    :target: https://pepy.tech/project/pyskani
 
 
