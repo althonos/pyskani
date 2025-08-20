@@ -451,6 +451,18 @@ impl Database {
         }
     }
 
+    /// `int`: The compression factor for sketches.
+    #[getter]
+    pub fn get_compression<'py>(slf: PyRef<'py, Self>, _py: Python) -> usize {
+        slf.params.c
+    }
+
+    /// `int`: The compression factor for marker k-mers.
+    #[getter]
+    pub fn get_marker_compression<'py>(slf: PyRef<'py, Self>, _py: Python) -> usize {
+        slf.params.marker_c
+    }
+
     /// Add a reference genome to the database.
     ///
     /// Arguments:
