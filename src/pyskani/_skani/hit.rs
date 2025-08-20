@@ -59,7 +59,7 @@ impl Hit {
 
     /// Return ``repr(self)``.
     pub fn __repr__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let template = PyString::new_bound(py, "Hit(identity={!r}, query_name={!r}, query_fraction={!r}, reference_name={!r}, reference_fraction={!r})");
+        let template = PyString::new(py, "Hit(identity={!r}, query_name={!r}, query_fraction={!r}, reference_name={!r}, reference_fraction={!r})");
         let fmt = template.call_method1(
             pyo3::intern!(py, "format"),
             (

@@ -377,9 +377,9 @@ impl Database {
             match *sketches {
                 DatabaseStorage::Memory(_) => Ok(py.None()),
                 DatabaseStorage::Folder(ref folder) | DatabaseStorage::Consolidated(ref folder, _) => {
-                    let pathlib = py.import_bound(pyo3::intern!(py, "pathlib"))?;
+                    let pathlib = py.import(pyo3::intern!(py, "pathlib"))?;
                     let path = pathlib.call_method1(pyo3::intern!(py, "Path"), (folder,))?;
-                    Ok(path.to_object(py))
+                    Ok(path.into())
                 }
             }
         } else {

@@ -27,7 +27,7 @@ pub fn main() -> PyResult<()> {
     Python::with_gil(|py| {
         // insert the project folder in `sys.modules` so that
         // the main module can be imported by Python
-        let sys = py.import_bound("sys").unwrap();
+        let sys = py.import("sys").unwrap();
         sys.getattr("path")
             .unwrap()
             .downcast::<PyList>()
@@ -36,7 +36,7 @@ pub fn main() -> PyResult<()> {
             .unwrap();
 
         // create a Python module from our rust code with debug symbols
-        let module = PyModule::new_bound(py, "pyskani._skani").unwrap();
+        let module = PyModule::new(py, "pyskani._skani").unwrap();
         pyskani::init(py, &module).unwrap();
         sys.getattr("modules")
             .unwrap()
@@ -46,10 +46,10 @@ pub fn main() -> PyResult<()> {
             .unwrap();
 
         // run unittest on the tests
-        let kwargs = PyDict::new_bound(py);
+        let kwargs = PyDict::new(py);
         kwargs.set_item("exit", false).unwrap();
         kwargs.set_item("verbosity", 2u8).unwrap();
-        py.import_bound("unittest")
+        py.import("unittest")
             .unwrap()
             .call_method("TestProgram", ("pyskani.tests",), Some(&kwargs))
             .map(|_| ())

@@ -16,7 +16,7 @@ use pyo3::exceptions::PyOSError;
 /// Try to obtain a path from a Python object using `os.fsdecode`.
 pub fn fsdecode<'py>(object: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyString>> {
     let py = object.py();
-    py.import_bound(pyo3::intern!(py, "os"))?
+    py.import(pyo3::intern!(py, "os"))?
         .call_method1(pyo3::intern!(py, "fsdecode"), (object,))
         .and_then(|x| x.extract())
 }
@@ -66,7 +66,7 @@ impl Text {
         } else if let Ok(bytes) = object.downcast::<PyByteArray>() {
             Ok(Text::Bytes(PyBackedBytes::from(bytes.clone())))
         } else {
-            let buffer = PyBuffer::get_bound(&object)?;
+            let buffer = PyBuffer::get(&object)?;
             let contents = buffer.to_vec(object.py())?;
             Ok(Text::Vec(contents))
         }
