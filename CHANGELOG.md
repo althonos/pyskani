@@ -6,7 +6,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 
 ## [Unreleased]
-[Unreleased]: https://github.com/althonos/pyskani/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/althonos/pyskani/compare/v0.2.0...HEAD
+
+
+## [v0.2.0] - 2025-08-21
+[v0.2.0]: https://github.com/althonos/pyskani/compare/v0.1.3...v0.2.0
+
+### Added
+- Support for reading and writing `Database` in "consolidated" format (introduced in `skani v0.3.0`).
+- `compression` and `marker_compression` properties to allow accessing the sketch parameters of a `Database` object.
+
+### Changed
+- Bump `pyo3` dependency to `v0.25.1`.
+- Bump `skani` dependency to `v0.3.0`.
 
 
 ## [v0.1.3] - 2024-12-05

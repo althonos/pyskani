@@ -19,7 +19,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: aarch64
-          args: --release --out dist --find-interpreter
+          args: --release --out dist -i 3.8 3.9 3.10 3.11 3.12 3.13 pypy3.9 pypy3.10
           sccache: 'true'
           manylinux: auto
       - name: Upload wheels
@@ -93,7 +93,7 @@ jobs:
 
   wheel-win32-x86_64:
     name: Build Windows wheels (x86-64)
-    runs-on: windows-2019
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

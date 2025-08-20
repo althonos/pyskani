@@ -55,6 +55,7 @@ before-build = "pip install maturin"
 test-command = "python -m unittest pyskani.tests -v"
 build-verbosity = 1
 free-threaded-support = false
+skip = ["pp37-*", "pp38-*"]
 
 [tool.cibuildwheel.linux]
 environment = { PATH="$PATH:$HOME/.cargo/bin" }
