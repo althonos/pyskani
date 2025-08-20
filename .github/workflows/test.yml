@@ -118,3 +118,5 @@ jobs:
       run: cargo tarpaulin -v --out Xml --ciserver github-actions
     - name: Upload coverage statistics
       uses: codecov/codecov-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
