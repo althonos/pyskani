@@ -2,6 +2,7 @@ extern crate pyo3;
 extern crate pyskani;
 
 use std::path::Path;
+use std::str::FromStr;
 
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -12,6 +13,8 @@ use pyo3::Python;
 pub fn main() -> PyResult<()> {
     // get the relative path to the project folder
     let folder = Path::new(file!())
+        .canonicalize()
+        .unwrap()
         .parent()
         .unwrap()
         .parent()
@@ -27,21 +30,16 @@ pub fn main() -> PyResult<()> {
     Python::with_gil(|py| {
         // insert the project folder in `sys.modules` so that
         // the main module can be imported by Python
-        let sys = py.import("sys").unwrap();
-        sys.getattr("path")
-            .unwrap()
-            .downcast::<PyList>()
-            .unwrap()
-            .insert(0, folder)
-            .unwrap();
+        let sys = py.import("sys")?;
+        sys.getattr("path")?
+            .downcast::<PyList>()?
+            .insert(0, folder.to_str().unwrap())?;
 
         // create a Python module from our rust code with debug symbols
-        let module = PyModule::new(py, "pyskani._skani").unwrap();
-        pyskani::init(py, &module).unwrap();
-        sys.getattr("modules")
-            .unwrap()
-            .downcast::<PyDict>()
-            .unwrap()
+        let module = PyModule::new(py, "pyskani._skani")?;
+        pyskani::init(py, &module)?;
+        sys.getattr("modules")?
+            .downcast::<PyDict>()?
             .set_item("pyskani._skani", module)
             .unwrap();
 
