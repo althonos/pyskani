@@ -18,7 +18,6 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::Read;
-use std::io::Seek;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::RwLock;
@@ -42,7 +41,7 @@ use self::sketch::Sketch;
 enum DatabaseStorage {
     Memory(HashMap<String, Sketch>),
     Folder(PathBuf),
-    Consolidated(PathBuf, HashMap<String, skani::sketch_db::IndexEntry>),
+    Consolidated(PathBuf, HashMap<String, IndexEntry>),
 }
 
 impl DatabaseStorage {
@@ -266,45 +265,21 @@ impl Database {
         // obtain Unicode representation of path
         let path = self::utils::fsdecode(path)?;
 
-        // load reference sketches
+        // load reference sketches record in marker file
         let mut sketches = HashMap::new();
-        for entry in std::fs::read_dir(path.to_str()?)
-            .unwrap() // safe to unwrap, the `File::open` would have crashed otherwise
-            .filter_map(Result::ok)
-            .filter(|entry| {
-                let filename = entry.file_name();
-                let filepath: &Path = filename.as_ref();
-                match filepath.extension() {
-                    None => false,
-                    Some(ext) => ext == "sketch",
-                }
-            })
-        {
-            let entry_path = entry.path();
-            let reader = match File::open(&entry_path).map(BufReader::new) {
-                Ok(reader) => reader,
-                Err(err) => {
-                    return if let Some(code) = err.raw_os_error() {
-                        let msg = format!("Failed to open {}", entry_path.display());
-                        Err(PyOSError::new_err((code, msg)))
-                    } else {
-                        Err(PyRuntimeError::new_err(err.to_string()))
-                    }
-                }
-            };
-            match bincode::deserialize_from::<_, (SketchParams, skani::types::Sketch)>(reader) {
-                Err(err) => return Err(PyValueError::new_err(err.to_string())),
-                Ok((params, raw_sketch)) => {
-                    let name = Path::new(&raw_sketch.file_name)
-                        .file_name()
-                        .unwrap()
-                        .to_os_string()
-                        .into_string()
-                        .unwrap(); // FIXME
-                    sketches.insert(name, Sketch::from(raw_sketch));
-                }
-            };
+        let mut handle = db.sketches.read().unwrap();
+        for marker in db.markers.read().unwrap().iter() {
+            let sketch = handle.load(&marker.as_ref().file_name)?;
+            let name = Path::new(&(*sketch).as_ref().file_name)
+                .file_name()
+                .unwrap()
+                .to_os_string()
+                .into_string()
+                .unwrap(); // FIXME
+            sketches.insert(name, sketch.into_owned());
         }
+
+        drop(handle);
         db.sketches = DatabaseStorage::Memory(sketches).into();
         Ok(db)
     }
@@ -365,7 +340,7 @@ impl Database {
         let sketches_path = fspath.join("sketches.db");
         if index_path.exists() && sketches_path.exists() {
             let reader = open_or_fail!(index_path);
-            let index = match bincode::deserialize_from::<_, Vec<skani::sketch_db::IndexEntry>>(reader) {
+            let index = match bincode::deserialize_from::<_, Vec<IndexEntry>>(reader) {
                 Ok(v) => v.into_iter().map(|entry| (entry.file_name.clone(), entry)).collect::<HashMap<_, _>>(),
                 Err(err) => return Err(PyValueError::new_err(err.to_string())),
             };
