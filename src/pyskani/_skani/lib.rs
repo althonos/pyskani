@@ -118,7 +118,7 @@ impl Database {
         C: IntoIterator<Item = &'c [u8]>,
     {
         // Adapted for a single genome from `fastx_to_sketches`
-        let mut is_valid = false;
+        // let mut is_valid = false;
         let mut contig_count = 0;
         let mut sketch = skani::types::Sketch::new(
             self.params.marker_c,
@@ -147,14 +147,15 @@ impl Database {
                     );
                 }
                 contig_count += 1;
-                is_valid = true;
+                // is_valid = true;
             }
         }
 
-        if is_valid && sketch.total_sequence_length > 20_000_000 {
-            sketch.repetitive_kmers =
-                skani::seeding::get_repetitive_kmers(&sketch.kmer_seeds_k, sketch.c);
-        }
+        // NOTE(@althonos): This was removed in skani v0.3.0.
+        // if is_valid && sketch.total_sequence_length > skani::params::REPET_KMER_THRESHOLD {
+        //     sketch.repetitive_kmers =
+        //         skani::seeding::get_repetitive_kmers(&sketch.kmer_seeds_k, sketch.c);
+        // }
 
         Ok(Sketch::from(sketch))
     }
@@ -430,18 +431,15 @@ impl Database {
 
     /// Add a reference genome to the database.
     ///
-    /// This method is a shortcut for `Database.add_draft` when a genome is
-    /// complete (i.e. only contains a single contig).
-    ///
     /// Arguments:
-    ///     name (`object`): The name of the reference genome to add.
+    ///     name (`str`): The name of the reference genome to add.
     ///     contigs (`str`, `bytes`, `bytearray` or `memoryview`): The contigs
     ///         of the reference genome.
     ///
     /// Keyword Arguments:
-    ///     seed (`bool`): Compute seed positions while sketching 
+    ///     seed (`bool`): Compute seed positions while sketching
     ///         the query.
-    /// 
+    ///
     #[pyo3(signature = (name, *contigs, seed=true))]
     pub fn sketch<'py>(
         &mut self,
@@ -485,22 +483,33 @@ impl Database {
     ///         of the query genome.
     ///
     /// Keyword Arguments:
-    ///     seed (`bool`): Compute seed positions while sketching 
+    ///     seed (`bool`): Compute seed positions while sketching
     ///         the query.
     ///     learned_ani (`bool` or `None`): Use a regression model to
     ///         compute ANI, using a model trained on MAGs. Pass `True`
     ///         or `False` to force enabling or disabling the model,
     ///         respectively. By default, the regression model is enabled
-    ///         when the sketch compression factor is >=70.
+    ///         when the sketch compression factor is >=70 and not running
+    ///         in median mode.
     ///     median (`bool`): Estimate median identity instead of average
-    ///         identity. Disabled by default.
+    ///         identity. Disabled by default. Equivalent to the ``--median``
+    ///         flag of the CLI.
     ///     robust (`bool`): Estimate mean after trim off 10%/90% quantiles.
-    ///         Disabled by default.
+    ///         Disabled by default. Equivalent to the ``--robust`` flag
+    ///         of the CLI.
+    ///     cutoff (`float` or `None`): The cutoff to use to screen out pairs
+    ///         with *approximately* lower identity, as computed with k-mer
+    ///         sketching. Defaults to 0.8 for ANI and 0.6 for AAI.
+    ///         Equivalent to the ``-s`` flag from the CLI.
+    ///     faster_small (`bool`): Set to ``True`` to filter genomes with
+    ///         less than 20 marker k-mers more aggressively. Disabled by
+    ///         default. Equivalent to the ``--faster-small`` flag of the
+    ///         CLI.
     ///
     /// Returns:
     ///     `list` of `~pyskani.Hit`: The hits found for the query.
     ///   
-    #[pyo3(signature = (name, *contigs, seed=true, learned_ani=None, median=false, robust=false))]
+    #[pyo3(signature = (name, *contigs, seed=true, learned_ani=None, median=false, robust=false, cutoff=None, faster_small=false))]
     pub fn query<'py>(
         &self,
         name: String,
@@ -509,6 +518,8 @@ impl Database {
         learned_ani: Option<bool>,
         median: bool,
         robust: bool,
+        cutoff: Option<f64>,
+        faster_small: bool,
     ) -> PyResult<Vec<Hit>> {
         // Get a view on the contigs
         let contents = contigs
@@ -524,7 +535,7 @@ impl Database {
             // Build command parameters
             let command_params = CommandParams {
                 screen: false,
-                screen_val: skani::params::SEARCH_ANI_CUTOFF_DEFAULT,
+                screen_val: cutoff.unwrap_or(0.0),
                 mode: skani::params::Mode::Search,
                 out_file_name: Default::default(),
                 ref_files: Default::default(),
@@ -546,8 +557,24 @@ impl Database {
                 detailed_out: false,
                 diagonal: false,
                 distance: false,
-                rescue_small: false,
+                rescue_small: !faster_small,
+                separate_sketches: false,
+                both_min_aligned_frac: -0.01,
+                short_header: false,
             };
+            // Get cutoff for screening
+            let screen_val = if command_params.screen_val != 0.0 {
+                command_params.screen_val
+            } else if self.params.use_aa {
+                skani::params::SEARCH_AAI_CUTOFF_DEFAULT
+            } else {
+                skani::params::SEARCH_ANI_CUTOFF_DEFAULT
+            };
+            // Load regression model if requested / necessary
+            let learned = learned_ani.unwrap_or_else(|| {
+                skani::regression::use_learned_ani(self.params.c, false, false, median)
+            });
+            let model_opt = skani::regression::get_model(self.params.c, learned);
             // Search marker sketches first
             let mut shortlist = HashSet::new();
             for marker in self
@@ -559,8 +586,8 @@ impl Database {
                 if skani::screen::check_markers_quickly(
                     query.as_ref(),
                     marker.as_ref(),
-                    command_params.screen_val,
-                    false // FIXME: rescue small
+                    screen_val,
+                    command_params.rescue_small,
                 ) {
                     let name = Path::new(&marker.as_ref().file_name)
                         .file_name()
@@ -583,22 +610,12 @@ impl Database {
                     reference.as_ref(),
                     self.params.use_aa,
                     &command_params,
-                    &None
+                    &model_opt,
                 );
                 let ani_res =
                     skani::chain::chain_seeds(reference.as_ref(), query.as_ref(), map_params);
-                if ani_res.ani > 0.5 {
+                if ani_res.ani > 0.1 {
                     hits.push(Hit::from(ani_res));
-                }
-            }
-            // Apply regression model for ANI correction
-            // FIXME: maybe pre-load model, to avoid having to deserialize on every query?
-            let learned = learned_ani.unwrap_or_else(|| {
-                skani::regression::use_learned_ani(self.params.c, false, false, median)
-            });
-            if let Some(ref model) = skani::regression::get_model(self.params.c, learned) {
-                for hit in hits.iter_mut() {
-                    skani::regression::predict_from_ani_res(&mut hit.as_mut(), model);
                 }
             }
             Ok(hits)
