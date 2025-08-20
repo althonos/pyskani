@@ -12,7 +12,7 @@ Pyskani |Stars|
 .. |Actions| image:: https://img.shields.io/github/actions/workflow/status/althonos/pyskani/test.yml?branch=main&logo=github&style=flat-square&maxAge=300
    :target: https://github.com/althonos/pyskani/actions
 
-.. |Coverage| image:: https://img.shields.io/codecov/c/gh/althonos/pyskani/branch/main.svg?style=flat-square&maxAge=600
+.. |Coverage| image:: https://img.shields.io/codecov/c/github/althonos/pyskani/main?style=flat-square&maxAge=3600
    :target: https://codecov.io/gh/althonos/pyskani/
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/pyskani.svg?style=flat-square&maxAge=3600
