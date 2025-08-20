@@ -109,10 +109,12 @@ jobs:
         profile: minimal
         toolchain: nightly
         override: true
+    - name: Download cargo-tarpaulin
+      run: |
+          mkdir -p "$HOME/.local/bin"
+          export PATH="$PATH:$HOME/.local/bin"
+          wget 'https://github.com/xd009642/tarpaulin/releases/download/0.32.8/cargo-tarpaulin-x86_64-unknown-linux-gnu.tar.gz' -O- | tar xz -C "$HOME/.local/bin"
     - name: Measure code coverage
-      uses: actions-rs/tarpaulin@v0.1
-      with:
-        version: '0.16.0'
-        args: '-v --out Xml --ciserver github-actions'
+      run: cargo tarpaulin -v --out Xml --ciserver github-actions
     - name: Upload coverage statistics
       uses: codecov/codecov-action@v1
