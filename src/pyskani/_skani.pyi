@@ -2,7 +2,9 @@ import os
 from array import array
 from pathlib import Path
 from types import TracebackType
-from typing import Dict, Union, Optional, Type, List
+from typing import Dict, Union, Optional, Type, List, Literal
+
+_FORMAT = Literal["consolidated", "separated"]
 
 _Path = Union[str, bytes, os.PathLike[str]]
 _Sequence = Union[str, bytes, bytearray, memoryview, array]
@@ -50,6 +52,7 @@ class Database:
         compression: int = ...,
         marker_compression: int = ...,
         k: int = ...,
+        format: Optional[_FORMAT] = None,
     ) -> None: ...
     def __enter__(self) -> Database: ...
     def __exit__(
@@ -69,6 +72,8 @@ class Database:
         learned_ani: Optional[bool] = None,
         median: bool = False,
         robust: bool = False,
+        cutoff: Optional[float] = None,
+        faster_small: bool = False,
     ) -> List[Hit]: ...
-    def save(self, path: _Path) -> None: ...
+    def save(self, path: _Path, format: Optional[_FORMAT] = None) -> None: ...
     def flush(self) -> None: ...
