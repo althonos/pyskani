@@ -1,5 +1,6 @@
 use std::io::BufReader;
 use std::fs::File;
+use std::io::BufWriter;
 use std::path::Path;
 
 use pyo3::buffer::PyBuffer;
@@ -27,6 +28,21 @@ pub fn buffered_open(path: &Path) -> PyResult<BufReader<File>> {
         Err(err) => {
             return if let Some(code) = err.raw_os_error() {
                 let msg = format!("Failed to open {}", path.display());
+                Err(PyOSError::new_err((code, msg)))
+            } else {
+                Err(PyRuntimeError::new_err(err.to_string()))
+            }
+        }
+    }
+}
+
+/// Try to create a file or fail with Python error handling.
+pub fn buffered_create(path: &Path) -> PyResult<BufWriter<File>> {
+    match File::create(&path).map(BufWriter::new) {
+        Ok(writer) => Ok(writer),
+        Err(err) => {
+            return if let Some(code) = err.raw_os_error() {
+                let msg = format!("Failed to create {}", path.display());
                 Err(PyOSError::new_err((code, msg)))
             } else {
                 Err(PyRuntimeError::new_err(err.to_string()))

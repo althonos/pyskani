@@ -15,8 +15,6 @@ mod build {
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::fs::File;
-use std::io::BufReader;
 use std::io::Read;
 use std::path::Path;
 use std::path::PathBuf;
@@ -54,17 +52,7 @@ impl DatabaseStorage {
             }
             DatabaseStorage::Folder(folder) => {
                 let sketch_path = folder.join(format!("{}.sketch", &sketch.as_ref().file_name));
-                let writer = match File::create(&sketch_path) {
-                    Ok(writer) => writer,
-                    Err(err) => {
-                        return if let Some(code) = err.raw_os_error() {
-                            let msg = format!("Failed to create {}", sketch_path.display());
-                            Err(PyOSError::new_err((code, msg)))
-                        } else {
-                            Err(PyRuntimeError::new_err(err.to_string()))
-                        }
-                    }
-                };
+                let writer = utils::buffered_create(&sketch_path)?;
                 match bincode::serialize_into(writer, &(params, sketch.as_ref())) {
                     Ok(()) => Ok(()),
                     Err(err) => return Err(PyValueError::new_err(err.to_string())),
@@ -82,17 +70,7 @@ impl DatabaseStorage {
             },
             DatabaseStorage::Folder(path) => {
                 let entry_path = path.join(format!("{}.sketch", name));
-                let reader = match File::open(&entry_path).map(BufReader::new) {
-                    Ok(reader) => reader,
-                    Err(err) => {
-                        return if let Some(code) = err.raw_os_error() {
-                            let msg = format!("Failed to open {}", entry_path.display());
-                            Err(PyOSError::new_err((code, msg)))
-                        } else {
-                            Err(PyRuntimeError::new_err(err.to_string()))
-                        }
-                    }
-                };
+                let reader = utils::buffered_open(&entry_path)?;
                 match bincode::deserialize_from::<_, (SketchParams, skani::types::Sketch)>(reader) {
                     Err(err) => Err(PyValueError::new_err(err.to_string())),
                     Ok((_, raw_sketch)) => Ok(Cow::Owned(Sketch::from(raw_sketch))),
@@ -103,17 +81,7 @@ impl DatabaseStorage {
                     Some(entry) => entry,
                     None => return Err(PyKeyError::new_err(name.to_string())),
                 };
-                let mut reader = match File::open(&path.join("sketches.db")).map(BufReader::new) {
-                    Ok(reader) => reader,
-                    Err(err) => {
-                        return if let Some(code) = err.raw_os_error() {
-                            let msg = format!("Failed to open {}", path.display());
-                            Err(PyOSError::new_err((code, msg)))
-                        } else {
-                            Err(PyRuntimeError::new_err(err.to_string()))
-                        }
-                    }
-                };
+                let mut reader = utils::buffered_open(&path.join("sketches.db"))?;
                 let mut buffer = vec![0; entry.length as usize];
                 reader.seek_relative(entry.offset as i64)?;
                 reader.read_exact(&mut buffer)?;
@@ -192,18 +160,7 @@ impl Database {
     where
         P: AsRef<Path>,
     {
-        let writer = match File::create(&path) {
-            Ok(writer) => writer,
-            Err(err) => {
-                return if let Some(code) = err.raw_os_error() {
-                    let msg = format!("Failed to create {}", path.as_ref().display());
-                    Err(PyOSError::new_err((code, msg)))
-                } else {
-                    Err(PyRuntimeError::new_err(err.to_string()))
-                }
-            }
-        };
-
+        let writer = utils::buffered_create(path.as_ref())?;
         if let Ok(vec) = self.markers.read() {
             let refs = vec.iter().map(|s| s.as_ref()).collect::<Vec<_>>();
             match bincode::serialize_into(writer, &(&self.params, &refs)) {
@@ -219,17 +176,7 @@ impl Database {
     where
         P: AsRef<Path>,
     {
-        let writer = match File::create(path.as_ref()) {
-            Ok(writer) => writer,
-            Err(err) => {
-                return if let Some(code) = err.raw_os_error() {
-                    let msg = format!("Failed to create {}", path.as_ref().display());
-                    Err(PyOSError::new_err((code, msg)))
-                } else {
-                    Err(PyRuntimeError::new_err(err.to_string()))
-                }
-            }
-        };
+        let writer = utils::buffered_create(path.as_ref())?;
         match bincode::serialize_into(writer, &(&self.params, sketch.as_ref())) {
             Ok(()) => Ok(()),
             Err(err) => return Err(PyValueError::new_err(err.to_string())),
@@ -304,29 +251,13 @@ impl Database {
     #[classmethod]
     #[allow(unused)]
     pub fn open<'py>(cls: &Bound<'py, PyType>, path: &Bound<'py, PyAny>) -> PyResult<Self> {
-        macro_rules! open_or_fail {
-            ($path:ident) => {
-                match File::open(&$path).map(BufReader::new) {
-                    Ok(reader) => reader,
-                    Err(err) => {
-                        return if let Some(code) = err.raw_os_error() {
-                            let msg = format!("Failed to open {}", $path.display());
-                            Err(PyOSError::new_err((code, msg)))
-                        } else {
-                            Err(PyRuntimeError::new_err(err.to_string()))
-                        }
-                    }
-                }
-            }
-        }
-
         // obtain Unicode representation of path
         let decoded = self::utils::fsdecode(path)?;
         let fspath = Path::new(decoded.to_str()?);
 
         // load marker sketches
         let markers_path = fspath.join("markers.bin");
-        let reader = open_or_fail!(markers_path);
+        let reader = utils::buffered_open(&markers_path)?;
         let (params, raw_markers) =
             match bincode::deserialize_from::<_, (SketchParams, Vec<skani::types::Sketch>)>(reader)
             {
@@ -339,7 +270,7 @@ impl Database {
         let index_path = fspath.join("index.db");
         let sketches_path = fspath.join("sketches.db");
         if index_path.exists() && sketches_path.exists() {
-            let reader = open_or_fail!(index_path);
+            let reader = utils::buffered_open(&index_path)?;
             let index = match bincode::deserialize_from::<_, Vec<IndexEntry>>(reader) {
                 Ok(v) => v.into_iter().map(|entry| (entry.file_name.clone(), entry)).collect::<HashMap<_, _>>(),
                 Err(err) => return Err(PyValueError::new_err(err.to_string())),
