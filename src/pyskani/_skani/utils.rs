@@ -1,9 +1,10 @@
-use std::io::BufReader;
 use std::fs::File;
+use std::io::BufReader;
 use std::io::BufWriter;
 use std::path::Path;
 
 use pyo3::buffer::PyBuffer;
+use pyo3::exceptions::PyOSError;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3::pybacked::PyBackedBytes;
@@ -11,7 +12,6 @@ use pyo3::pybacked::PyBackedStr;
 use pyo3::types::PyByteArray;
 use pyo3::types::PyBytes;
 use pyo3::types::PyString;
-use pyo3::exceptions::PyOSError;
 
 /// Try to obtain a path from a Python object using `os.fsdecode`.
 pub fn fsdecode<'py>(object: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyString>> {
@@ -53,7 +53,12 @@ pub fn buffered_create(path: &Path) -> PyResult<BufWriter<File>> {
 
 /// Try to append to a file or fail with Python error handling.
 pub fn buffered_append(path: &Path) -> PyResult<BufWriter<File>> {
-    match std::fs::OpenOptions::new().create(true).append(true).open(&path).map(BufWriter::new) {
+    match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .map(BufWriter::new)
+    {
         Ok(writer) => Ok(writer),
         Err(err) => {
             return if let Some(code) = err.raw_os_error() {
@@ -100,4 +105,3 @@ impl Text {
 pub fn poisoned_lock_error() -> PyErr {
     PyRuntimeError::new_err("Poisoned lock")
 }
-

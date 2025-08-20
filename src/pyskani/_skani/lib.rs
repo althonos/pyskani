@@ -65,9 +65,11 @@ impl DatabaseStorage {
                 // ensure no duplicate names otherwise the hashmap is invalid
                 let name = &sketch.as_ref().file_name;
                 if index.contains_key(name) {
-                    return Err(PyValueError::new_err(format!("duplicate name in sketches: {:?}", name)));
+                    return Err(PyValueError::new_err(format!(
+                        "duplicate name in sketches: {:?}",
+                        name
+                    )));
                 }
-                println!("storing {:?} to {:?}", name, folder);
                 // serialize the sketches to a temporary buffer
                 let buffer = match bincode::serialize(&(params, sketch.as_ref())) {
                     Ok(buffer) => buffer,
@@ -212,14 +214,15 @@ impl Database {
         }
     }
 
-    fn _save_sketch<P>(&self, path: P, sketch: &Sketch) -> PyResult<()>
-    where
-        P: AsRef<Path>,
-    {
-        let writer = utils::buffered_create(path.as_ref())?;
-        match bincode::serialize_into(writer, &(&self.params, sketch.as_ref())) {
-            Ok(()) => Ok(()),
-            Err(err) => return Err(PyValueError::new_err(err.to_string())),
+    fn _flush(&self, storage: &DatabaseStorage) -> PyResult<()> {
+        match storage {
+            DatabaseStorage::Memory(_) => Ok(()),
+            DatabaseStorage::Folder(folder) => self._save_markers(folder.join("markers.bin")),
+            DatabaseStorage::Consolidated(folder, index) => {
+                self._save_markers(folder.join("markers.bin"))?;
+                self._save_index(folder.join("index.db"), index)?;
+                Ok(())
+            }
         }
     }
 }
@@ -312,7 +315,10 @@ impl Database {
         if index_path.exists() && sketches_path.exists() {
             let reader = utils::buffered_open(&index_path)?;
             let index = match bincode::deserialize_from::<_, Vec<IndexEntry>>(reader) {
-                Ok(v) => v.into_iter().map(|entry| (entry.file_name.clone(), entry)).collect::<HashMap<_, _>>(),
+                Ok(v) => v
+                    .into_iter()
+                    .map(|entry| (entry.file_name.clone(), entry))
+                    .collect::<HashMap<_, _>>(),
                 Err(err) => return Err(PyValueError::new_err(err.to_string())),
             };
             Ok(Self {
@@ -347,7 +353,7 @@ impl Database {
     ///         k-mers. Markers are used for filtering. You want at least ~100
     ///         markers, so ``genome_size/marker_compression > 100`` is highly
     ///         recommended. Higher value is more time/memory efficient.
-    ///     format (`str`): The database format to use. Use either 
+    ///     format (`str`): The database format to use. Use either
     ///         ``separated`` to write one sketch file per sketch genome
     ///         (as in ``skani<0.3.0``), or ``consolidated`` (the default)
     ///         to write a single sketch file (as in ``skani>=0.3.0``)
@@ -355,7 +361,7 @@ impl Database {
     /// Raises:
     ///     `OSError`: When a new folder could not be created.
     ///     `FileExistsError`: When the folder already contains sketches.
-    /// 
+    ///
     /// .. versionadded:: 0.2.0
     ///     The ``format`` keyword argument.
     ///
@@ -391,10 +397,16 @@ impl Database {
                         buf.join("markers.bin").display().to_string(),
                     ));
                 }
-                match format.as_ref().map(String::as_str).unwrap_or("consolidated") {
+                match format
+                    .as_ref()
+                    .map(String::as_str)
+                    .unwrap_or("consolidated")
+                {
                     "consolidated" => DatabaseStorage::Consolidated(buf, HashMap::new()),
                     "separated" => DatabaseStorage::Folder(buf),
-                    other => return Err(PyValueError::new_err(format!("invalid format: {}", other))),
+                    other => {
+                        return Err(PyValueError::new_err(format!("invalid format: {}", other)))
+                    }
                 }
             }
         };
@@ -427,7 +439,8 @@ impl Database {
         if let Ok(sketches) = self.sketches.read() {
             match *sketches {
                 DatabaseStorage::Memory(_) => Ok(py.None()),
-                DatabaseStorage::Folder(ref folder) | DatabaseStorage::Consolidated(ref folder, _) => {
+                DatabaseStorage::Folder(ref folder)
+                | DatabaseStorage::Consolidated(ref folder, _) => {
                     let pathlib = py.import(pyo3::intern!(py, "pathlib"))?;
                     let path = pathlib.call_method1(pyo3::intern!(py, "Path"), (folder,))?;
                     Ok(path.into())
@@ -517,6 +530,9 @@ impl Database {
     ///
     /// Returns:
     ///     `list` of `~pyskani.Hit`: The hits found for the query.
+    ///
+    /// ..versionadded:: 0.2.0
+    ///     The ``cutoff`` and ``faster_small`` keyword arguments.
     ///   
     #[pyo3(signature = (name, *contigs, seed=true, learned_ani=None, median=false, robust=false, cutoff=None, faster_small=false))]
     pub fn query<'py>(
@@ -632,8 +648,13 @@ impl Database {
     }
 
     /// Save the database to the given path.
-    #[pyo3(signature = (path, overwrite=false))]
-    pub fn save<'py>(&self, path: &Bound<'py, PyAny>, overwrite: bool) -> PyResult<()> {
+    #[pyo3(signature = (path, overwrite=false, format=None))]
+    pub fn save<'py>(
+        &self,
+        path: &Bound<'py, PyAny>,
+        overwrite: bool,
+        format: Option<String>,
+    ) -> PyResult<()> {
         // obtain Unicode representation of path
         let path = self::utils::fsdecode(path)?;
 
@@ -659,7 +680,12 @@ impl Database {
         }
         self._save_markers(markers_path)?;
 
-        // FIXME: Handle new consolidated format.
+        // decode which format is required
+        let mut storage = match format.as_ref().map(String::as_str) {
+            Some("consolidated") | None => DatabaseStorage::Folder(folder.to_owned()),
+            Some("separated") => DatabaseStorage::Consolidated(folder.to_owned(), HashMap::new()),
+            Some(other) => return Err(PyValueError::new_err(format!("invalid format: {}", other))),
+        };
 
         // Serialize the sketches
         for filename in self
@@ -674,23 +700,17 @@ impl Database {
                 .unwrap()
                 .to_os_string()
                 .into_string()
-                .unwrap(); // FIXME
-            let sketch_path = folder.join(format!("{}.sketch", name));
-            if !overwrite && sketch_path.exists() {
-                return Err(PyFileExistsError::new_err(
-                    sketch_path.display().to_string(),
-                ));
-            }
-            self._save_sketch(
-                sketch_path,
-                &*self
-                    .sketches
-                    .read()
-                    .map_err(|_| self::utils::poisoned_lock_error())?
-                    .load(&name)?,
-            )?;
+                .unwrap(); // FIXME?
+            let sketch = self
+                .sketches
+                .read()
+                .map_err(|_| self::utils::poisoned_lock_error())?
+                .load(&name)?
+                .into_owned();
+            storage.store(sketch, &self.params)?;
         }
-        Ok(())
+
+        self._flush(&storage)
     }
 
     /// Flush the database buffers to disk.
@@ -701,17 +721,7 @@ impl Database {
     ///
     pub fn flush(&self) -> PyResult<()> {
         if let Ok(sketches) = self.sketches.read() {
-            match &*sketches {
-                DatabaseStorage::Memory(_) => Ok(()),
-                DatabaseStorage::Folder(folder) => {
-                    self._save_markers(folder.join("markers.bin"))
-                }
-                DatabaseStorage::Consolidated(folder, index) => {
-                    self._save_markers(folder.join("markers.bin"))?;
-                    self._save_index(folder.join("index.db"), index)?;
-                    Ok(())
-                }
-            }
+            self._flush(&*sketches)
         } else {
             Err(self::utils::poisoned_lock_error())
         }
