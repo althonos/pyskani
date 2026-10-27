@@ -28,11 +28,9 @@ pyo3 = "0.25.0"
 pyo3-built = "0.6.0"
 
 [dependencies.skani]
-version = "0.3.0"
-git = "https://github.com/bluenote-1577/skani"
+version = "0.4.0"
 default-features = false
 features = ["cli"]
-tag = "v0.3.0"
 
 [features]
 default = []
