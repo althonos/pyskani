@@ -181,6 +181,10 @@ impl Database {
         //         skani::seeding::get_repetitive_kmers(&sketch.kmer_seeds_k, sketch.c);
         // }
 
+        // NOTE(@althonos): In skani v0.4.0 the seeds must be finalized once the
+        //                  genome (or individual contigs) have been sketched
+        sketch.finalize_seed_index();
+
         Ok(Sketch::from(sketch))
     }
 
@@ -267,6 +271,11 @@ impl Database {
                 .into_string()
                 .unwrap(); // FIXME
             sketches.insert(name, sketch.into_owned());
+        }
+
+        // Ensure sketches are finalized before making them immutable
+        for (_, sketch) in sketches.iter_mut() {
+            sketch.as_mut().finalize_seed_index();
         }
 
         drop(handle);

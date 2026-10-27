@@ -13,6 +13,12 @@ impl AsRef<skani::types::Sketch> for Sketch {
     }
 }
 
+impl AsMut<skani::types::Sketch> for Sketch {
+    fn as_mut(&mut self) -> &mut skani::types::Sketch {
+        &mut self.sketch
+    }
+}
+
 #[pymethods]
 impl Sketch {
     #[getter]
