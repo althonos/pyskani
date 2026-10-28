@@ -42,3 +42,9 @@ impl From<skani::types::Sketch> for Sketch {
         Self { sketch }
     }
 }
+
+impl From<skani::types::LegacySketch> for Sketch {
+    fn from(sketch: skani::types::LegacySketch) -> Self {
+        Self { sketch: sketch.0 }
+    }
+}

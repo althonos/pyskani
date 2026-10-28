@@ -27,9 +27,9 @@ class TestDatabase(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(tmpdir, "markers.bin")))
             self.assertEqual(database.path, pathlib.Path(tmpdir))
 
-    def test_folder_consolidated(self):
+    def test_folder_legacy(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            database = pyskani.Database(tmpdir, format="consolidated")
+            database = pyskani.Database(tmpdir, format="consolidated", format_version=0)
             database.sketch("test1", b"ATGC"*100)
             database.sketch("test2", b"TTGC"*100)
             self.assertTrue(os.path.exists(os.path.join(tmpdir, "sketches.db")))
@@ -39,4 +39,24 @@ class TestDatabase(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(tmpdir, "sketches.db")))
             self.assertTrue(os.path.exists(os.path.join(tmpdir, "index.db")))
             self.assertTrue(os.path.exists(os.path.join(tmpdir, "markers.bin")))
+            self.assertEqual(database.path, pathlib.Path(tmpdir))
+
+    def test_folder_consolidated(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            database = pyskani.Database(tmpdir, format="consolidated") # default
+            database.sketch("test1", b"ATGC"*100)
+            database.sketch("test2", b"TTGC"*100)
+            self.assertFalse(os.path.exists(os.path.join(tmpdir, "sketches.db")))
+            self.assertTrue(os.path.exists(os.path.join(tmpdir, "sketches.db2")))
+            self.assertFalse(os.path.exists(os.path.join(tmpdir, "index.db")))
+            self.assertFalse(os.path.exists(os.path.join(tmpdir, "index.db2")))
+            self.assertFalse(os.path.exists(os.path.join(tmpdir, "markers.bin")))
+            self.assertFalse(os.path.exists(os.path.join(tmpdir, "markers.bin2")))
+            database.flush()
+            self.assertFalse(os.path.exists(os.path.join(tmpdir, "sketches.db")))
+            self.assertTrue(os.path.exists(os.path.join(tmpdir, "sketches.db2")))
+            self.assertFalse(os.path.exists(os.path.join(tmpdir, "index.db")))
+            self.assertTrue(os.path.exists(os.path.join(tmpdir, "index.db2")))
+            # self.assertTrue(os.path.exists(os.path.join(tmpdir, "markers.bin")))
+            self.assertTrue(os.path.exists(os.path.join(tmpdir, "markers.bin2")))
             self.assertEqual(database.path, pathlib.Path(tmpdir))
