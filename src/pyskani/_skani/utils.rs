@@ -3,7 +3,6 @@ use std::io::BufReader;
 use std::io::BufWriter;
 use std::path::Path;
 
-use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::PyOSError;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
@@ -79,6 +78,7 @@ pub enum Text {
 
 impl Text {
     pub fn new<'py>(object: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        let py = object.py();
         if let Ok(str) = object.downcast::<PyString>() {
             Ok(Text::Str(PyBackedStr::try_from(str.clone())?))
         } else if let Ok(bytes) = object.downcast::<PyBytes>() {
@@ -86,9 +86,20 @@ impl Text {
         } else if let Ok(bytes) = object.downcast::<PyByteArray>() {
             Ok(Text::Bytes(PyBackedBytes::from(bytes.clone())))
         } else {
-            let buffer = PyBuffer::get(&object)?;
-            let contents = buffer.to_vec(object.py())?;
-            Ok(Text::Vec(contents))
+            // Get a memoryview on the input using the stable ABI
+            let mview = unsafe {
+                Bound::<PyAny>::from_owned_ptr_or_err(
+                    py,
+                    pyo3::ffi::PyMemoryView_FromObject(object.as_ptr())
+                )
+            }?;
+            // Call the Python method "tobytes" to return the memory content
+            let bytes = mview
+                .call_method0(pyo3::intern!(py, "tobytes"))?
+                .downcast::<PyBytes>()?
+                .clone();
+            // Extract the results
+            Ok(Text::Bytes(PyBackedBytes::from(bytes)))
         }
     }
 

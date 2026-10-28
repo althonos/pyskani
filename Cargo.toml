@@ -39,7 +39,7 @@ features = ["union", "serde", "write"]
 
 [features]
 default = []
-extension-module = ["pyo3/extension-module"]
+extension-module = ["pyo3/extension-module", "pyo3/abi3-py38"]
 nightly = ["pyo3/nightly"]
 
 [[test]]

@@ -21,6 +21,7 @@ use std::io::Seek;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::RwLock;
 use std::unimplemented;
 
@@ -411,7 +412,7 @@ impl Database {
     pub fn open<'py>(cls: &Bound<'py, PyType>, path: &Bound<'py, PyAny>) -> PyResult<Self> {
         // obtain Unicode representation of path
         let decoded = self::utils::fsdecode(path)?;
-        let fspath = Path::new(decoded.to_str()?);
+        let fspath = PathBuf::from(decoded.to_cow()?.into_owned());
 
         // detect format version based off filenames
         let format_version = [FormatVersion::V2(skani::types::SKETCH_FORMAT_VERSION), FormatVersion::Legacy]
@@ -576,7 +577,7 @@ impl Database {
                 // obtain Unicode representation of path
                 let folder = self::utils::fsdecode(folder)?;
                 // create the folder if it does not exist
-                let buf = PathBuf::from(folder.to_str()?);
+                let buf = PathBuf::from(folder.to_cow()?.into_owned());
                 if !buf.exists() {
                     if let Err(err) = std::fs::create_dir_all(&buf) {
                         return if let Some(code) = err.raw_os_error() {
@@ -928,9 +929,9 @@ impl Database {
         let path = self::utils::fsdecode(path)?;
 
         // Create folder if it doesn't exist
-        let folder = Path::new(path.to_str()?);
+        let folder = PathBuf::from(path.to_cow()?.into_owned());
         if !folder.exists() {
-            if let Err(err) = std::fs::create_dir_all(folder) {
+            if let Err(err) = std::fs::create_dir_all(&folder) {
                 return if let Some(code) = err.raw_os_error() {
                     let msg = format!("Failed to create {}", folder.display());
                     Err(PyOSError::new_err((code, msg)))
@@ -947,14 +948,14 @@ impl Database {
                 markers_path.display().to_string(),
             ));
         }
-        self._save_markers(folder, &fv)?;
+        self._save_markers(&folder, &fv)?;
 
         // decode which format is required
         let mut storage = match format.as_ref().map(String::as_str) {
             Some("consolidated") | None => {
-                DatabaseStorage::Consolidated(folder.to_owned(), HashMap::new(), fv)
+                DatabaseStorage::Consolidated(folder, HashMap::new(), fv)
             }
-            Some("separated") => DatabaseStorage::Folder(folder.to_owned()),
+            Some("separated") => DatabaseStorage::Folder(folder),
             _ => unreachable!(),
         };
 
