@@ -26,11 +26,16 @@ features = ["chrono", "cargo-lock"]
 bincode = "1.3.3"
 pyo3 = "0.25.0"
 pyo3-built = "0.6.0"
+serde = "1"
 
 [dependencies.skani]
 version = "0.4.0"
 default-features = false
 features = ["cli"]
+
+[dependencies.smallvec]
+version = "1"
+features = ["union", "serde", "write"]
 
 [features]
 default = []

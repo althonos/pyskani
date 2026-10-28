@@ -59,3 +59,40 @@ class TestAniEC590(unittest.TestCase):
         self.assertAlmostEqual(hits[0].reference_fraction, 0.9246, places=4)
         self.assertAlmostEqual(hits[0].query_fraction, 0.9189, places=4)
         self.assertAlmostEqual(hits[0].identity, 0.9995, places=4)
+
+    def test_database_load_legacy(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self.db.save(tmpdir, format="consolidated", format_version=0)
+            db2 = pyskani.Database.load(tmpdir)
+            hits1 = self.db.query("K12", self.query.seq.encode("ascii"))
+            hits2 = db2.query("K12", self.query.seq.encode("ascii"))
+            self.assertEqual(len(hits1), len(hits2))
+            for h1, h2 in zip(hits1, hits2):
+                self.assertEqual(h1.reference_fraction, h2.reference_fraction)
+                self.assertEqual(h1.query_fraction, h2.query_fraction)
+                self.assertEqual(h1.identity, h2.identity)
+
+    def test_database_load_separated(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self.db.save(tmpdir, format="separated")
+            db2 = pyskani.Database.load(tmpdir)
+            hits1 = self.db.query("K12", self.query.seq.encode("ascii"))
+            hits2 = db2.query("K12", self.query.seq.encode("ascii"))
+            self.assertEqual(len(hits1), len(hits2))
+            for h1, h2 in zip(hits1, hits2):
+                self.assertEqual(h1.reference_fraction, h2.reference_fraction)
+                self.assertEqual(h1.query_fraction, h2.query_fraction)
+                self.assertEqual(h1.identity, h2.identity)
+
+    def test_database_load(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self.db.save(tmpdir, format="consolidated", format_version=1)
+            db2 = pyskani.Database.load(tmpdir)
+            hits1 = self.db.query("K12", self.query.seq.encode("ascii"))
+            hits2 = db2.query("K12", self.query.seq.encode("ascii"))
+            self.assertEqual(len(hits1), len(hits2))
+            for h1, h2 in zip(hits1, hits2):
+                self.assertEqual(h1.reference_fraction, h2.reference_fraction)
+                self.assertEqual(h1.query_fraction, h2.query_fraction)
+                self.assertEqual(h1.identity, h2.identity)
+            

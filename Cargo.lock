@@ -1178,7 +1178,9 @@ dependencies = [
  "built",
  "pyo3",
  "pyo3-built",
+ "serde",
  "skani",
+ "smallvec",
 ]
 
 [[package]]
