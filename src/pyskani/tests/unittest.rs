@@ -2,7 +2,6 @@ extern crate pyo3;
 extern crate pyskani;
 
 use std::path::Path;
-use std::str::FromStr;
 
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
