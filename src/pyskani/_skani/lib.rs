@@ -15,8 +15,8 @@ mod build {
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::io::Read;
 use std::io::BufRead;
+use std::io::Read;
 use std::io::Seek;
 use std::io::Write;
 use std::ops::Index;
@@ -25,8 +25,8 @@ use std::path::PathBuf;
 use std::sync::RwLock;
 use std::unimplemented;
 
-use pyo3::exceptions::PyFileNotFoundError;
 use pyo3::exceptions::PyFileExistsError;
+use pyo3::exceptions::PyFileNotFoundError;
 use pyo3::exceptions::PyKeyError;
 use pyo3::exceptions::PyOSError;
 use pyo3::exceptions::PyRuntimeError;
@@ -45,7 +45,7 @@ use self::sketch::Sketch;
 
 #[derive(Debug, Clone)]
 enum FormatVersion {
-    /// Legacy format, as implemented in `skani <0.4`; sketch entries are 
+    /// Legacy format, as implemented in `skani <0.4`; sketch entries are
     /// written immediately after each other.
     Legacy,
     /// Format introduced in `skani >=0.4`; sketch entries each contain a
@@ -76,7 +76,6 @@ impl FormatVersion {
         }
     }
 }
-
 
 enum DatabaseStorage {
     Memory(HashMap<String, Sketch>),
@@ -111,7 +110,7 @@ impl DatabaseStorage {
                     )));
                 }
                 // serialize the sketches to a temporary buffer using either
-                // a legacy sketch (for legacy format) or a native sketch 
+                // a legacy sketch (for legacy format) or a native sketch
                 // prefixed with the sketch header
                 let buffer = match format_version {
                     FormatVersion::Legacy => {
@@ -131,7 +130,8 @@ impl DatabaseStorage {
                     }
                 };
                 // open the sketches file and create an index entry
-                let mut writer = utils::buffered_append(&folder.join(format_version.sketches_filename()))?;
+                let mut writer =
+                    utils::buffered_append(&folder.join(format_version.sketches_filename()))?;
                 let index_entry = IndexEntry {
                     file_name: name.clone(),
                     offset: writer.stream_position()?,
@@ -150,11 +150,13 @@ impl DatabaseStorage {
             DatabaseStorage::Memory(memory) => match memory.get(name) {
                 Some(sketch) => Ok(Cow::Borrowed(sketch)),
                 None => Err(PyKeyError::new_err(name.to_string())),
-            }
+            },
             DatabaseStorage::Folder(path) => {
                 let entry_path = path.join(format!("{}.sketch", name));
                 let reader = utils::buffered_open(&entry_path)?;
-                match bincode::deserialize_from::<_, (SketchParams, skani::types::LegacySketch)>(reader) {
+                match bincode::deserialize_from::<_, (SketchParams, skani::types::LegacySketch)>(
+                    reader,
+                ) {
                     Err(err) => Err(PyValueError::new_err(err.to_string())),
                     Ok((_, raw_sketch)) => Ok(Cow::Owned(Sketch::from(raw_sketch))),
                 }
@@ -175,25 +177,27 @@ impl DatabaseStorage {
                 // Method for loading data depends on the detected sketch format
                 match skani::types::detect_sketch_format(&buffer) {
                     SketchFormat::Native => {
-                        match bincode::deserialize::<(SketchParams, skani::types::Sketch)>(&buffer[skani::types::SKETCH_HEADER_LEN..]) {
+                        match bincode::deserialize::<(SketchParams, skani::types::Sketch)>(
+                            &buffer[skani::types::SKETCH_HEADER_LEN..],
+                        ) {
                             Err(err) => Err(PyValueError::new_err(err.to_string())),
                             Ok((_, raw_sketch)) => Ok(Cow::Owned(Sketch::from(raw_sketch))),
                         }
                     }
                     SketchFormat::Legacy => {
-                        match bincode::deserialize::<(SketchParams, skani::types::LegacySketch)>(&buffer) {
+                        match bincode::deserialize::<(SketchParams, skani::types::LegacySketch)>(
+                            &buffer,
+                        ) {
                             Err(err) => Err(PyValueError::new_err(err.to_string())),
                             Ok((_, raw_sketch)) => Ok(Cow::Owned(Sketch::from(raw_sketch))),
                         }
                     }
-                    SketchFormat::Unsupported(version) => {
-                        Err(PyValueError::new_err(
-                            format!(
-                                "database was written with a newer skani version: sketch format version {}", 
-                                version.map(|v| v.to_string()).unwrap_or(String::from("unknown")),
-                            )
-                        ))
-                    }
+                    SketchFormat::Unsupported(version) => Err(PyValueError::new_err(format!(
+                        "database was written with a newer skani version: sketch format version {}",
+                        version
+                            .map(|v| v.to_string())
+                            .unwrap_or(String::from("unknown")),
+                    ))),
                 }
             }
         }
@@ -299,7 +303,12 @@ impl Database {
         }
     }
 
-    fn _save_index<P>(&self, folder: P, format_version: &FormatVersion, index: &HashMap<String, IndexEntry>) -> PyResult<()>
+    fn _save_index<P>(
+        &self,
+        folder: P,
+        format_version: &FormatVersion,
+        index: &HashMap<String, IndexEntry>,
+    ) -> PyResult<()>
     where
         P: AsRef<Path>,
     {
@@ -317,9 +326,7 @@ impl Database {
     fn _flush(&self, storage: &DatabaseStorage) -> PyResult<()> {
         match storage {
             DatabaseStorage::Memory(_) => Ok(()),
-            DatabaseStorage::Folder(folder) => {
-                self._save_markers(folder, &FormatVersion::Legacy)
-            }
+            DatabaseStorage::Folder(folder) => self._save_markers(folder, &FormatVersion::Legacy),
             DatabaseStorage::Consolidated(folder, index, format_version) => {
                 self._save_markers(folder, &format_version)?;
                 self._save_index(folder, &format_version, index)?;
@@ -410,9 +417,14 @@ impl Database {
             .iter()
             .find(|fv| fspath.join(fv.markers_filename()).exists())
             .cloned()
-            .ok_or_else(|| PyFileNotFoundError::new_err(
-                fspath.join(FormatVersion::V2(1).markers_filename()).display().to_string(),
-            ))?;
+            .ok_or_else(|| {
+                PyFileNotFoundError::new_err(
+                    fspath
+                        .join(FormatVersion::V2(1).markers_filename())
+                        .display()
+                        .to_string(),
+                )
+            })?;
 
         // load markers from detected format
         let markers_path = fspath.join(format_version.markers_filename());
@@ -421,27 +433,33 @@ impl Database {
 
         let (params, markers) = match skani::types::detect_sketch_format(header) {
             SketchFormat::Legacy => {
-                match bincode::deserialize_from::<_, (SketchParams, Vec<skani::types::LegacySketch>)>(reader)
-                {
-                    Ok((params, raw_markers)) => (params, raw_markers.into_iter().map(Sketch::from).collect()),
+                match bincode::deserialize_from::<_, (SketchParams, Vec<skani::types::LegacySketch>)>(
+                    reader,
+                ) {
+                    Ok((params, raw_markers)) => {
+                        (params, raw_markers.into_iter().map(Sketch::from).collect())
+                    }
                     Err(err) => return Err(PyValueError::new_err(err.to_string())),
                 }
             }
             SketchFormat::Native => {
                 reader.consume(skani::types::SKETCH_HEADER_LEN);
-                match bincode::deserialize_from::<_, (SketchParams, Vec<skani::types::Sketch>)>(reader)
-                {
-                    Ok((params, raw_markers)) => (params, raw_markers.into_iter().map(Sketch::from).collect()),
+                match bincode::deserialize_from::<_, (SketchParams, Vec<skani::types::Sketch>)>(
+                    reader,
+                ) {
+                    Ok((params, raw_markers)) => {
+                        (params, raw_markers.into_iter().map(Sketch::from).collect())
+                    }
                     Err(err) => return Err(PyValueError::new_err(err.to_string())),
                 }
             }
             SketchFormat::Unsupported(version) => {
-                return Err(PyValueError::new_err(
-                    format!(
-                        "database was written with a newer skani version: sketch format version {}", 
-                        version.map(|v| v.to_string()).unwrap_or(String::from("unknown")),
-                    )
-                ))
+                return Err(PyValueError::new_err(format!(
+                    "database was written with a newer skani version: sketch format version {}",
+                    version
+                        .map(|v| v.to_string())
+                        .unwrap_or(String::from("unknown")),
+                )))
             }
         };
 
@@ -450,7 +468,9 @@ impl Database {
         let sketches_path = fspath.join(format_version.sketches_filename());
         if index_path.exists() {
             if !sketches_path.exists() {
-                return Err(PyFileNotFoundError::new_err(sketches_path.display().to_string()))
+                return Err(PyFileNotFoundError::new_err(
+                    sketches_path.display().to_string(),
+                ));
             };
             let reader = utils::buffered_open(&index_path)?;
             let index = match bincode::deserialize_from::<_, Vec<IndexEntry>>(reader) {
@@ -463,7 +483,11 @@ impl Database {
             Ok(Self {
                 params,
                 markers: RwLock::new(markers),
-                sketches: RwLock::new(DatabaseStorage::Consolidated(fspath.into(), index, format_version)),
+                sketches: RwLock::new(DatabaseStorage::Consolidated(
+                    fspath.into(),
+                    index,
+                    format_version,
+                )),
             })
         } else {
             // use the folder for storage
@@ -517,20 +541,33 @@ impl Database {
         let storage = match path {
             None => DatabaseStorage::Memory(HashMap::new()),
             Some(folder) => {
-
                 // check that the parameters are correct
                 let fv = match format.as_ref().map(String::as_str) {
                     Some("consolidated") | None => match format_version {
                         Some(0) => FormatVersion::Legacy,
                         None => FormatVersion::V2(skani::types::SKETCH_FORMAT_VERSION),
                         Some(n) if n <= skani::types::SKETCH_FORMAT_VERSION => FormatVersion::V2(n),
-                        Some(n) => return Err(PyValueError::new_err(format!("invalid format version: {}", n))),
+                        Some(n) => {
+                            return Err(PyValueError::new_err(format!(
+                                "invalid format version: {}",
+                                n
+                            )))
+                        }
                     },
                     Some("separated") => match format_version {
                         None | Some(0) => FormatVersion::Legacy,
-                        Some(1) => return Err(PyValueError::new_err(format!("\"separated\" format only supports format version 0 (legacy)"))),
-                        Some(n) => return Err(PyValueError::new_err(format!("invalid format version: {}", n))),
-                    }
+                        Some(1) => {
+                            return Err(PyValueError::new_err(format!(
+                                "\"separated\" format only supports format version 0 (legacy)"
+                            )))
+                        }
+                        Some(n) => {
+                            return Err(PyValueError::new_err(format!(
+                                "invalid format version: {}",
+                                n
+                            )))
+                        }
+                    },
                     Some(other) => {
                         return Err(PyValueError::new_err(format!("invalid format: {}", other)))
                     }
@@ -834,16 +871,28 @@ impl Database {
                 Some(0) => FormatVersion::Legacy,
                 None => FormatVersion::V2(skani::types::SKETCH_FORMAT_VERSION),
                 Some(n) if n <= skani::types::SKETCH_FORMAT_VERSION => FormatVersion::V2(n),
-                Some(n) => return Err(PyValueError::new_err(format!("invalid format version: {}", n))),
+                Some(n) => {
+                    return Err(PyValueError::new_err(format!(
+                        "invalid format version: {}",
+                        n
+                    )))
+                }
             },
             Some("separated") => match format_version {
                 None | Some(0) => FormatVersion::Legacy,
-                Some(1) => return Err(PyValueError::new_err(format!("\"separated\" format only supports format version 0 (legacy)"))),
-                Some(n) => return Err(PyValueError::new_err(format!("invalid format version: {}", n))),
-            }
-            Some(other) => {
-                return Err(PyValueError::new_err(format!("invalid format: {}", other)))
-            }
+                Some(1) => {
+                    return Err(PyValueError::new_err(format!(
+                        "\"separated\" format only supports format version 0 (legacy)"
+                    )))
+                }
+                Some(n) => {
+                    return Err(PyValueError::new_err(format!(
+                        "invalid format version: {}",
+                        n
+                    )))
+                }
+            },
+            Some(other) => return Err(PyValueError::new_err(format!("invalid format: {}", other))),
         };
 
         // obtain Unicode representation of path
@@ -873,7 +922,9 @@ impl Database {
 
         // decode which format is required
         let mut storage = match format.as_ref().map(String::as_str) {
-            Some("consolidated") | None => DatabaseStorage::Consolidated(folder.to_owned(), HashMap::new(), fv),
+            Some("consolidated") | None => {
+                DatabaseStorage::Consolidated(folder.to_owned(), HashMap::new(), fv)
+            }
             Some("separated") => DatabaseStorage::Folder(folder.to_owned()),
             _ => unreachable!(),
         };

@@ -68,10 +68,12 @@ impl From<LegacySketch> for Sketch {
             contig_order: value.contig_order,
             individual_contig: value.individual_contig,
             amino_acid: value.amino_acid,
-        }.into()
+        }
+        .into()
     }
 }
 
+/// A sketch as defined in `skani <=0.3`.
 #[derive(Serialize, Deserialize)]
 pub(crate) struct LegacySketch {
     file_name: String,
@@ -92,45 +94,29 @@ pub(crate) struct LegacySketch {
 
 impl From<Sketch> for LegacySketch {
     fn from(value: Sketch) -> Self {
-
-        // Ensure the seed index is finalized
+        // Ensure the seed index is finalized, otherwise we won't be able
+        // to access the arrays
         let mut index = value.sketch.seed_index.clone().unwrap_or_default();
         index.finalize();
-
         // Rebuild the original kmer_seeds_k
         let mut multi_position_storage = Vec::new();
         let mut kmer_seeds_k = skani::types::KmerSeeds::default(); // <SeedBits, u64> where u64 is a TaggedIndex
-        
-        let seeds = index.seeds();
-        let positions = index.positions();
-        let mut entries = seeds.iter().zip(positions).map(|(&x, &y)| (x, y)).peekable();
-        
-        while let Some((mut seed, mut position)) = entries.next() {
-            // In legacy format the positions were stored in a hashmap and
-            // therefore multiple identical seeds had to use a dedicated 
-            // mechanism to store 
-            let mut next_seed = entries.peek().map(|x| x.0);
-            if next_seed != Some(seed) {
-                kmer_seeds_k.insert(seed, skani::types::TaggedIndex::single(&position));
+        for run in index.runs() {
+            if run.positions.len() == 1 {
+                kmer_seeds_k.insert(
+                    run.seed,
+                    skani::types::TaggedIndex::single(&run.positions[0]),
+                );
             } else {
-                // create a new multi position storage
                 let storage_index = multi_position_storage.len();
                 let storage_vec = multi_position_storage.push_mut(SmallVec::default());
-                // 
-                kmer_seeds_k.insert(seed, TaggedIndex::multiple(storage_index));
-                loop {
-                    storage_vec.push(position);
-                    if next_seed == Some(seed) {
-                        (seed, position) = entries.next().unwrap();
-                        next_seed = entries.peek().map(|x| x.0);
-                    } else {
-                        break
-                    }
+                kmer_seeds_k.insert(run.seed, TaggedIndex::multiple(storage_index));
+                for &seed_position in run.positions {
+                    storage_vec.push(seed_position);
                 }
             }
         }
-
-        // Create the legacy sketch
+        // Return the legacy sketch
         LegacySketch {
             file_name: value.sketch.file_name,
             kmer_seeds_k: Some(kmer_seeds_k),
