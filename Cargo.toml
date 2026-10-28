@@ -9,9 +9,9 @@ homepage = "https://github.com/althonos/pyskani/"
 readme = "README.md"
 categories = ["science"]
 keywords = ["bioinformatics", "genomics", "average", "nucleotide", "identity"]
-publish = false
 edition = "2021"
 build = "src/pyskani/_skani/build.rs"
+exclude = ["wheelhouse", "dist", "src/pyskani/tests/*.fasta.gz", "src/pyskani/tests/db_*"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
