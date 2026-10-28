@@ -19,7 +19,6 @@ use std::io::BufRead;
 use std::io::Read;
 use std::io::Seek;
 use std::io::Write;
-use std::ops::Index;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::RwLock;
@@ -57,22 +56,22 @@ enum FormatVersion {
 impl FormatVersion {
     pub fn sketches_filename(&self) -> &'static str {
         match self {
-            Self::Legacy => "sketches.db",
-            Self::V2(_) => "sketches.db2",
+            Self::Legacy => skani::sketch_db::SKETCHES_DB_LEGACY,
+            Self::V2(_) => skani::sketch_db::SKETCHES_DB,
         }
     }
 
     pub fn markers_filename(&self) -> &'static str {
         match self {
-            Self::Legacy => "markers.bin",
-            Self::V2(_) => "markers.bin2",
+            Self::Legacy => skani::sketch_db::MARKERS_FILE_LEGACY,
+            Self::V2(_) => skani::sketch_db::MARKERS_FILE,
         }
     }
 
     pub fn index_filename(&self) -> &'static str {
         match self {
-            Self::Legacy => "index.db",
-            Self::V2(_) => "index.db2",
+            Self::Legacy => skani::sketch_db::INDEX_DB_LEGACY,
+            Self::V2(_) => skani::sketch_db::INDEX_DB,
         }
     }
 }
@@ -84,6 +83,7 @@ enum DatabaseStorage {
 }
 
 impl DatabaseStorage {
+    /// Store a single sketch to the database storage.
     fn store(&mut self, sketch: Sketch, params: &SketchParams) -> PyResult<()> {
         match self {
             DatabaseStorage::Memory(memory) => {
@@ -145,12 +145,13 @@ impl DatabaseStorage {
         }
     }
 
+    /// Load a single sketch from the database storage.
     fn load<'db>(&'db self, name: &str) -> PyResult<Cow<'db, Sketch>> {
         match self {
             DatabaseStorage::Memory(memory) => match memory.get(name) {
                 Some(sketch) => Ok(Cow::Borrowed(sketch)),
                 None => Err(PyKeyError::new_err(name.to_string())),
-            },
+            }
             DatabaseStorage::Folder(path) => {
                 let entry_path = path.join(format!("{}.sketch", name));
                 let reader = utils::buffered_open(&entry_path)?;
@@ -167,7 +168,7 @@ impl DatabaseStorage {
                     Some(entry) => entry,
                     None => return Err(PyKeyError::new_err(name.to_string())),
                 };
-                // Filename depends on the database version
+                // Filename depends on the database format version
                 let filename = format_version.sketches_filename();
                 // Extract data for entry
                 let mut reader = utils::buffered_open(&path.join(filename))?;
@@ -413,14 +414,14 @@ impl Database {
         let fspath = Path::new(decoded.to_str()?);
 
         // detect format version based off filenames
-        let format_version = [FormatVersion::V2(1), FormatVersion::Legacy]
+        let format_version = [FormatVersion::V2(skani::types::SKETCH_FORMAT_VERSION), FormatVersion::Legacy]
             .iter()
             .find(|fv| fspath.join(fv.markers_filename()).exists())
             .cloned()
             .ok_or_else(|| {
                 PyFileNotFoundError::new_err(
                     fspath
-                        .join(FormatVersion::V2(1).markers_filename())
+                        .join(FormatVersion::V2(skani::types::SKETCH_FORMAT_VERSION).markers_filename())
                         .display()
                         .to_string(),
                 )
@@ -430,7 +431,6 @@ impl Database {
         let markers_path = fspath.join(format_version.markers_filename());
         let mut reader = utils::buffered_open(&markers_path)?;
         let header = reader.fill_buf()?;
-
         let (params, markers) = match skani::types::detect_sketch_format(header) {
             SketchFormat::Legacy => {
                 match bincode::deserialize_from::<_, (SketchParams, Vec<skani::types::LegacySketch>)>(
@@ -588,7 +588,7 @@ impl Database {
                     }
                 }
                 // check the folder is not already in use independently of format version
-                for fv in &[FormatVersion::Legacy, FormatVersion::V2(1)] {
+                for fv in &[FormatVersion::Legacy, FormatVersion::V2(skani::types::SKETCH_FORMAT_VERSION)] {
                     let marker_path = buf.join(fv.markers_filename());
                     if marker_path.exists() {
                         return Err(PyFileExistsError::new_err(
