@@ -60,3 +60,21 @@ class TestDatabase(unittest.TestCase):
             # self.assertTrue(os.path.exists(os.path.join(tmpdir, "markers.bin")))
             self.assertTrue(os.path.exists(os.path.join(tmpdir, "markers.bin2")))
             self.assertEqual(database.path, pathlib.Path(tmpdir))
+
+    def test_format_version(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db = pyskani.Database(tmpdir, format="consolidated")
+            self.assertEqual(db.format, "consolidated")
+            self.assertEqual(db.format_version, 1)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db = pyskani.Database(tmpdir, format="consolidated", format_version=0)
+            self.assertEqual(db.format, "consolidated")
+            self.assertEqual(db.format_version, 0)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db = pyskani.Database(tmpdir, format="separated")
+            self.assertEqual(db.format, "separated")
+            self.assertEqual(db.format_version, 0)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db = pyskani.Database()
+            self.assertEqual(db.format, "memory")
+            self.assertEqual(db.format_version, 1)
