@@ -90,7 +90,7 @@ impl Text {
             let mview = unsafe {
                 Bound::<PyAny>::from_owned_ptr_or_err(
                     py,
-                    pyo3::ffi::PyMemoryView_FromObject(object.as_ptr())
+                    pyo3::ffi::PyMemoryView_FromObject(object.as_ptr()),
                 )
             }?;
             // Call the Python method "tobytes" to return the memory content

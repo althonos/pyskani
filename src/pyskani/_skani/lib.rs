@@ -21,7 +21,6 @@ use std::io::Seek;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::sync::RwLock;
 use std::unimplemented;
 
@@ -152,7 +151,7 @@ impl DatabaseStorage {
             DatabaseStorage::Memory(memory) => match memory.get(name) {
                 Some(sketch) => Ok(Cow::Borrowed(sketch)),
                 None => Err(PyKeyError::new_err(name.to_string())),
-            }
+            },
             DatabaseStorage::Folder(path) => {
                 let entry_path = path.join(format!("{}.sketch", name));
                 let reader = utils::buffered_open(&entry_path)?;
@@ -415,18 +414,21 @@ impl Database {
         let fspath = PathBuf::from(decoded.to_cow()?.into_owned());
 
         // detect format version based off filenames
-        let format_version = [FormatVersion::V2(skani::types::SKETCH_FORMAT_VERSION), FormatVersion::Legacy]
-            .iter()
-            .find(|fv| fspath.join(fv.markers_filename()).exists())
-            .cloned()
-            .ok_or_else(|| {
-                PyFileNotFoundError::new_err(
-                    fspath
-                        .join(FormatVersion::V2(skani::types::SKETCH_FORMAT_VERSION).markers_filename())
-                        .display()
-                        .to_string(),
-                )
-            })?;
+        let format_version = [
+            FormatVersion::V2(skani::types::SKETCH_FORMAT_VERSION),
+            FormatVersion::Legacy,
+        ]
+        .iter()
+        .find(|fv| fspath.join(fv.markers_filename()).exists())
+        .cloned()
+        .ok_or_else(|| {
+            PyFileNotFoundError::new_err(
+                fspath
+                    .join(FormatVersion::V2(skani::types::SKETCH_FORMAT_VERSION).markers_filename())
+                    .display()
+                    .to_string(),
+            )
+        })?;
 
         // load markers from detected format
         let markers_path = fspath.join(format_version.markers_filename());
@@ -589,7 +591,10 @@ impl Database {
                     }
                 }
                 // check the folder is not already in use independently of format version
-                for fv in &[FormatVersion::Legacy, FormatVersion::V2(skani::types::SKETCH_FORMAT_VERSION)] {
+                for fv in &[
+                    FormatVersion::Legacy,
+                    FormatVersion::V2(skani::types::SKETCH_FORMAT_VERSION),
+                ] {
                     let marker_path = buf.join(fv.markers_filename());
                     if marker_path.exists() {
                         return Err(PyFileExistsError::new_err(
@@ -662,6 +667,8 @@ impl Database {
     }
 
     /// `str`: The database format (either ``consolidated``, ``separated`` or ``memory``).
+    ///
+    /// .. versionadded:: 0.3.0
     #[getter]
     pub fn get_format<'py>(slf: PyRef<'py, Self>, _py: Python) -> PyResult<&'static str> {
         if let Ok(sketches) = slf.sketches.read() {
@@ -676,6 +683,8 @@ impl Database {
     }
 
     /// `int`: The database format version.
+    ///
+    /// .. versionadded:: 0.3.0
     #[getter]
     pub fn get_format_version<'py>(slf: PyRef<'py, Self>, _py: Python) -> PyResult<u32> {
         if let Ok(sketches) = slf.sketches.read() {
