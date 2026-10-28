@@ -5,6 +5,7 @@ from types import TracebackType
 from typing import Dict, Union, Optional, Type, List, Literal
 
 _FORMAT = Literal["consolidated", "separated"]
+_FORMAT_VERSION = Literal[0, 1]
 
 _Path = Union[str, bytes, os.PathLike[str]]
 _Sequence = Union[str, bytes, bytearray, memoryview, array]
@@ -53,6 +54,7 @@ class Database:
         marker_compression: int = ...,
         k: int = ...,
         format: Optional[_FORMAT] = None,
+        format_version: Optional[_FORMAT_VERSION] = None,
     ) -> None: ...
     def __enter__(self) -> Database: ...
     def __exit__(
@@ -67,6 +69,10 @@ class Database:
     def compression(self) -> int: ...
     @property
     def marker_compression(self) -> int: ...
+    @property
+    def format(self) -> Literal[_FORMAT, "memory"]: ...
+    @property
+    def format_version(self) -> Literal[0, 1]: ...
     def sketch(self, name: str, *contigs: _Sequence, seed: bool = True) -> None: ...
     def query(
         self,
@@ -79,5 +85,10 @@ class Database:
         cutoff: Optional[float] = None,
         faster_small: bool = False,
     ) -> List[Hit]: ...
-    def save(self, path: _Path, format: Optional[_FORMAT] = None) -> None: ...
+    def save(
+        self, 
+        path: _Path,
+        format: Optional[_FORMAT] = None,
+        format_version: Optional[_FORMAT_VERSION] = None,
+    ) -> None: ...
     def flush(self) -> None: ...

@@ -660,6 +660,35 @@ impl Database {
         slf.params.marker_c
     }
 
+    /// `str`: The database format (either ``consolidated``, ``separated`` or ``memory``).
+    #[getter]
+    pub fn get_format<'py>(slf: PyRef<'py, Self>, _py: Python) -> PyResult<&'static str> {
+        if let Ok(sketches) = slf.sketches.read() {
+            match *sketches {
+                DatabaseStorage::Memory(_) => Ok("memory"),
+                DatabaseStorage::Folder(_) => Ok("separated"),
+                DatabaseStorage::Consolidated(_, _, _) => Ok("consolidated"),
+            }
+        } else {
+            Err(self::utils::poisoned_lock_error())
+        }
+    }
+
+    /// `int`: The database format version.
+    #[getter]
+    pub fn get_format_version<'py>(slf: PyRef<'py, Self>, _py: Python) -> PyResult<u32> {
+        if let Ok(sketches) = slf.sketches.read() {
+            match *sketches {
+                DatabaseStorage::Memory(_) => Ok(skani::types::SKETCH_FORMAT_VERSION),
+                DatabaseStorage::Folder(_) => Ok(0),
+                DatabaseStorage::Consolidated(_, _, FormatVersion::Legacy) => Ok(0),
+                DatabaseStorage::Consolidated(_, _, FormatVersion::V2(v)) => Ok(v),
+            }
+        } else {
+            Err(self::utils::poisoned_lock_error())
+        }
+    }
+
     /// Add a reference genome to the database.
     ///
     /// Arguments:
