@@ -19,7 +19,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: aarch64
-          args: --release --out dist -i 3.8 3.9 3.10 3.11 3.12 3.13 pypy3.9 pypy3.10
+          args: --release --out dist --find-interpreter
           sccache: 'true'
           manylinux: auto
       - name: Upload wheels
@@ -185,6 +185,27 @@ jobs:
     - name: Publish distributions to PyPI
       if: startsWith(github.ref, 'refs/tags')
       uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish:
+    needs: upload
+    runs-on: ubuntu-latest
+    environment: Crates.io
+    if: "startsWith(github.ref, 'refs/tags/v')"
+    name: Publish
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Setup Rust ${{ matrix.rust-toolchain }}
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+        components: rustfmt
+    - name: Setup Python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+    - name: Package and publish base crate
+      run: cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
 
   release:
     environment: GitHub Releases
