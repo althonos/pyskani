@@ -60,7 +60,7 @@ class TestAniEC590(unittest.TestCase):
         self.assertAlmostEqual(hits[0].query_fraction, 0.9189, places=4)
         self.assertAlmostEqual(hits[0].identity, 0.9995, places=4)
 
-    def test_database_load_legacy(self):
+    def test_new_database_legacy(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             self.db.save(tmpdir, format="consolidated", format_version=0)
             db2 = pyskani.Database.load(tmpdir)
@@ -72,7 +72,7 @@ class TestAniEC590(unittest.TestCase):
                 self.assertEqual(h1.query_fraction, h2.query_fraction)
                 self.assertEqual(h1.identity, h2.identity)
 
-    def test_database_load_separated(self):
+    def test_new_database_separated(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             self.db.save(tmpdir, format="separated")
             db2 = pyskani.Database.load(tmpdir)
@@ -84,7 +84,7 @@ class TestAniEC590(unittest.TestCase):
                 self.assertEqual(h1.query_fraction, h2.query_fraction)
                 self.assertEqual(h1.identity, h2.identity)
 
-    def test_database_load(self):
+    def test_new_database_consolidated(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             self.db.save(tmpdir, format="consolidated", format_version=1)
             db2 = pyskani.Database.load(tmpdir)
@@ -95,4 +95,55 @@ class TestAniEC590(unittest.TestCase):
                 self.assertEqual(h1.reference_fraction, h2.reference_fraction)
                 self.assertEqual(h1.query_fraction, h2.query_fraction)
                 self.assertEqual(h1.identity, h2.identity)
-            
+
+    def test_open_skani_database_consolidated(self):
+        path = os.path.join(DATA_FOLDER, "db_v2")
+        db = pyskani.Database.open(path)
+        hits = db.query("K12", self.query.seq.encode("ascii"))
+        self.assertEqual(len(hits), 2)
+        hits.sort(key=lambda hit: hit.identity, reverse=True)
+        self.assertAlmostEqual(hits[0].reference_fraction, 1.0, places=4)
+        self.assertAlmostEqual(hits[0].query_fraction, 1.0, places=4)
+        self.assertAlmostEqual(hits[0].identity, 1.0, places=4)
+        self.assertAlmostEqual(hits[1].reference_fraction, 0.9246, places=4)
+        self.assertAlmostEqual(hits[1].query_fraction, 0.9189, places=4)
+        self.assertAlmostEqual(hits[1].identity, 0.9939, places=4)
+
+    def test_open_skani_database_legacy(self):
+        path = os.path.join(DATA_FOLDER, "db_legacy")
+        db = pyskani.Database.open(path)
+        hits = db.query("K12", self.query.seq.encode("ascii"))
+        self.assertEqual(len(hits), 2)
+        hits.sort(key=lambda hit: hit.identity, reverse=True)
+        self.assertAlmostEqual(hits[0].reference_fraction, 1.0, places=4)
+        self.assertAlmostEqual(hits[0].query_fraction, 1.0, places=4)
+        self.assertAlmostEqual(hits[0].identity, 1.0, places=4)
+        self.assertAlmostEqual(hits[1].reference_fraction, 0.9246, places=4)
+        self.assertAlmostEqual(hits[1].query_fraction, 0.9189, places=4)
+        self.assertAlmostEqual(hits[1].identity, 0.9939, places=4)
+
+    def test_load_skani_database_consolidated(self):
+        path = os.path.join(DATA_FOLDER, "db_v2")
+        db = pyskani.Database.load(path)
+        hits = db.query("K12", self.query.seq.encode("ascii"))
+        self.assertEqual(len(hits), 2)
+        hits.sort(key=lambda hit: hit.identity, reverse=True)
+        self.assertAlmostEqual(hits[0].reference_fraction, 1.0, places=4)
+        self.assertAlmostEqual(hits[0].query_fraction, 1.0, places=4)
+        self.assertAlmostEqual(hits[0].identity, 1.0, places=4)
+        self.assertAlmostEqual(hits[1].reference_fraction, 0.9246, places=4)
+        self.assertAlmostEqual(hits[1].query_fraction, 0.9189, places=4)
+        self.assertAlmostEqual(hits[1].identity, 0.9939, places=4)
+
+    def test_load_skani_database_legacy(self):
+        path = os.path.join(DATA_FOLDER, "db_legacy")
+        db = pyskani.Database.load(path)
+        hits = db.query("K12", self.query.seq.encode("ascii"))
+        self.assertEqual(len(hits), 2)
+        hits.sort(key=lambda hit: hit.identity, reverse=True)
+        self.assertAlmostEqual(hits[0].reference_fraction, 1.0, places=4)
+        self.assertAlmostEqual(hits[0].query_fraction, 1.0, places=4)
+        self.assertAlmostEqual(hits[0].identity, 1.0, places=4)
+        self.assertAlmostEqual(hits[1].reference_fraction, 0.9246, places=4)
+        self.assertAlmostEqual(hits[1].query_fraction, 0.9189, places=4)
+        self.assertAlmostEqual(hits[1].identity, 0.9939, places=4)
