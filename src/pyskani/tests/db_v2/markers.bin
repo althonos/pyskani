@@ -1,0 +1,5 @@
+SKANI-DB-V2: this database requires skani >= 0.4.0.
+The marker data lives in markers.bin2. This file exists only so that older
+versions of skani fail immediately with a clear error instead of slowly
+parsing a format they cannot read.
+Upgrade skani, or rebuild this database with skani >= 0.4.0.
