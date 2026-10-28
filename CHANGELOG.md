@@ -6,7 +6,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 
 ## [Unreleased]
-[Unreleased]: https://github.com/althonos/pyskani/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/althonos/pyskani/compare/v0.3.0...HEAD
+
+
+## [v0.3.0] - 2026-10-28
+[v0.3.0]: https://github.com/althonos/pyskani/compare/v0.2.0...v0.3.0
+
+### Added
+- Support for new database format introduced in latest `skani` version.
+- `Database.format` and `Database.format_version` properties 
+- Compilation of `abi3` wheels with Python Limited API 3.8.
+
+### Changed
+- Bump `skani` dependency to `v0.4.0`.
+- Default database format version is now *1* to follow the new `skani` format. 
 
 
 ## [v0.2.0] - 2025-08-21

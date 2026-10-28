@@ -8,16 +8,15 @@ dynamic = ["version"]
 description = "PyO3 bindings and Python interface to skani, a method for fast fast genomic identity calculation using sparse chaining."
 readme = 'README.md'
 requires-python = ">=3.7"
-license = { file = "COPYING" }
+license = "MIT"
 authors = [
   { name = "Martin Larralde", email = "martin.larralde@embl.de" },
 ]
 keywords = ["bioinformatics", "genomics", "average", "nucleotide", "identity"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Rust",
     "Programming Language :: Python :: 3.7",
@@ -40,7 +39,6 @@ classifiers = [
 "Documentation" = "https://pyskani.readthedocs.io"
 "Bug Tracker" = "https://github.com/althonos/pyskani/issues"
 "Changelog" = "https://github.com/althonos/pyskani/blob/master/CHANGELOG.md"
-# "Coverage" = "https://codecov.io/gh/althonos/pyskani/"
 "Builds" = "https://github.com/althonos/pyskani/actions/"
 "PyPI" = "https://pypi.org/project/pyskani"
 
@@ -49,12 +47,12 @@ manifest-path = "Cargo.toml"
 features = ["extension-module"]
 python-source = "src"
 module-name = "pyskani._skani"
+sdist-include = ["COPYING"]
 
 [tool.cibuildwheel]
 before-build = "pip install maturin"
 test-command = "python -m unittest pyskani.tests -v"
 build-verbosity = 1
-free-threaded-support = false
 skip = ["pp37-*", "pp38-*"]
 
 [tool.cibuildwheel.linux]
