@@ -2,7 +2,7 @@ maturin
 
 # sphinx documentation dependencies
 semantic_version ~=2.8
-sphinx ~=5.0
+sphinx ~=9.0
 recommonmark ~=0.7
 pygments-style-monokailight ~=0.4
 ipython ~=7.19

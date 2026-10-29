@@ -7,10 +7,10 @@ version: 2
 
 # Set the OS, Python version and other tools you might need
 build:
-  os: ubuntu-22.04
+  os: ubuntu-26.04
   tools:
-    python: "3.11"
-    rust: "1.82"
+    python: "latest"
+    rust: "latest"
 
 # Build documentation in the "docs/" directory with Sphinx
 sphinx:
