@@ -3,10 +3,10 @@ Installation
 
 .. note::
 
-    Wheels are provided for Linux and OSX x86-64, but other machines will
-    have to build the wheel from the source distribution. Building ``pyskani``
-    involves compiling ``skani``, which requires a Rust compiler to be 
-    available on the local machine.
+    Wheels are provided for Linux, OSX and Windows x86-64, as well as Linux and OSX
+    Arm64. Other machines will have to build the wheel from the source distribution. 
+    Building ``pyskani`` involves compiling ``skani``, which requires a Rust 
+    compiler to be available on the local machine.
 
 
 PyPi
@@ -21,11 +21,14 @@ one is available, or from source after compiling the Cython code :
 
    $ pip install --user pyskani
 
+Since ``v0.3.0`` PyPI hosts wheels built with the Python Limited API 3.8 and 
+which are therefore forward compatible with any modern version of Python.
+
 
 Conda
 ^^^^^
 
-`pyskani` is also available as a `recipe <https://anaconda.org/bioconda/pyskani>`_
+``pyskani`` is also available as a `recipe <https://anaconda.org/bioconda/pyskani>`_
 in the `bioconda <https://bioconda.github.io/>`_ channel. To install, simply
 use the ``conda`` installer:
 
@@ -47,6 +50,21 @@ Steps to install on ArchLinux depend on your `AUR helper <https://wiki.archlinux
 .. code:: console
 
     $ aura -A python-pyskani
+
+
+Piwheels
+^^^^^^^^
+
+``pyskani`` works on Raspberry Pi computers (with NEON vectorization enabled!),
+and pre-built wheels are compiled for `armv7l` platforms on piwheels.
+Run the following command to install these instead of compiling from source:
+
+.. code:: console
+
+   $ pip3 install pyskani --extra-index-url https://www.piwheels.org/simple
+
+Check the `piwheels documentation <https://www.piwheels.org/faq.html>`_ for
+more information.
 
 
 GitHub + ``pip``
