@@ -7,7 +7,7 @@ Pyskani |Stars|
 `PyO3 <https://pyo3.rs/>`_ *bindings and Python interface to* `skani <https://github.com/bluenote-1577/skani>`_,
 *a method for fast fast genomic identity calculation using sparse chaining.*
 
-|Actions| |Coverage| |PyPI| |Bioconda| |AUR| |Wheel| |Versions| |Implementations| |License| |Source| |Mirror| |Issues| |Docs| |Changelog| |Downloads|
+|Actions| |Coverage| |PyPI| |Bioconda| |AUR| |Wheel| |Versions| |Implementations| |License| |Source| |Mirror| |Issues| |Docs| |Changelog| |Downloads| |Paper| |Citations|
 
 .. |Actions| image:: https://img.shields.io/github/actions/workflow/status/althonos/pyskani/test.yml?branch=main&logo=github&style=flat-square&maxAge=300
    :target: https://github.com/althonos/pyskani/actions
@@ -24,10 +24,10 @@ Pyskani |Stars|
 .. |AUR| image:: https://img.shields.io/aur/version/python-pyskani?logo=archlinux&style=flat-square&maxAge=3600
    :target: https://aur.archlinux.org/packages/python-pyskani
 
-.. |Wheel| image:: https://img.shields.io/pypi/wheel/pyskani?style=flat-square&maxAge=3600
+.. |Wheel| image:: https://img.shields.io/badge/wheel-abi3-green.svg?style=flat-square&maxAge=3600
    :target: https://pypi.org/project/pyskani/#files
 
-.. |Versions| image:: https://img.shields.io/pypi/pyversions/pyskani.svg?style=flat-square&maxAge=3600
+.. |Versions| image:: https://img.shields.io/badge/python-3.8%2B-blue.svg?style=flat-square&maxAge=3600
    :target: https://pypi.org/project/pyskani/#files
 
 .. |Implementations| image:: https://img.shields.io/pypi/implementation/pyskani.svg?style=flat-square&maxAge=3600&label=impl
@@ -53,6 +53,12 @@ Pyskani |Stars|
 
 .. |Downloads| image:: https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fpepy.tech%2Fprojects%2Fpyskani&search=%5B0-9%5D%2B.%5B0-9%5D%2B(k%7CM)&style=flat-square&label=downloads&color=303f9f&cacheSeconds=86400
    :target: https://pepy.tech/project/pyskani
+
+.. |Paper| image:: https://img.shields.io/badge/paper-nargab%2Flqaf095-darkblue?style=flat-square&maxAge=2678400
+   :target: https://academic.oup.com/nargab/article/7/3/lqaf095/8196481
+
+.. |Citations| image:: https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fbadge.dimensions.ai%2Fdetails%2Fid%2Fpub.1190680655&search=%3Cdiv%20class%3D%22count%22%3E(%5Cd*)%3C%2Fdiv%3E&replace=%241&style=flat-square&label=citations&cacheSeconds=3600
+   :target: https://badge.dimensions.ai/details/id/pub.1190680655
 
 
 Overview

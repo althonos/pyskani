@@ -8,8 +8,8 @@
 [![PyPI](https://img.shields.io/pypi/v/pyskani.svg?style=flat-square&maxAge=3600)](https://pypi.org/project/pyskani)
 [![Bioconda](https://img.shields.io/conda/vn/bioconda/pyskani?style=flat-square&maxAge=3600&logo=anaconda)](https://anaconda.org/bioconda/pyskani)
 [![AUR](https://img.shields.io/aur/version/python-pyskani?logo=archlinux&style=flat-square&maxAge=3600)](https://aur.archlinux.org/packages/python-pyskani)
-[![Wheel](https://img.shields.io/pypi/wheel/pyskani.svg?style=flat-square&maxAge=3600)](https://pypi.org/project/pyskani/#files)
-[![Python Versions](https://img.shields.io/pypi/pyversions/pyskani.svg?style=flat-square&maxAge=600)](https://pypi.org/project/pyskani/#files)
+[![Wheel](https://img.shields.io/badge/wheel-abi3-green.svg?style=flat-square&maxAge=3600)](https://pypi.org/project/pyskani/#files)
+[![Python Versions](https://img.shields.io/badge/python-3.8%2B-blue.svg?style=flat-square&maxAge=3600)](https://pypi.org/project/pyskani/#files)
 [![Python Implementations](https://img.shields.io/pypi/implementation/pyskani.svg?style=flat-square&maxAge=600&label=impl)](https://pypi.org/project/pyskani/#files)
 [![Source](https://img.shields.io/badge/source-GitHub-303030.svg?maxAge=2678400&style=flat-square)](https://github.com/althonos/pyskani/)
 [![Mirror](https://img.shields.io/badge/mirror-EMBL-009f4d?style=flat-square&maxAge=2678400)](https://git.embl.de/larralde/pyskani/)
@@ -18,6 +18,7 @@
 [![Changelog](https://img.shields.io/badge/keep%20a-changelog-8A0707.svg?maxAge=2678400&style=flat-square)](https://github.com/althonos/pyskani/blob/master/CHANGELOG.md)
 [![Downloads](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fpepy.tech%2Fprojects%2Fpyskani&search=%5B0-9%5D%2B.%5B0-9%5D%2B(k%7CM)&style=flat-square&label=downloads&color=303f9f&cacheSeconds=86400)](https://pepy.tech/project/pyskani)
 [![Paper](https://img.shields.io/badge/paper-nargab%2Flqaf095-darkblue?style=flat-square&maxAge=2678400)](https://academic.oup.com/nargab/article/7/3/lqaf095/8196481)
+[![Citations](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fbadge.dimensions.ai%2Fdetails%2Fid%2Fpub.1190680655&search=%3Cdiv%20class%3D%22count%22%3E(%5Cd*)%3C%2Fdiv%3E&replace=%241&style=flat-square&label=citations&cacheSeconds=3600)](https://badge.dimensions.ai/details/id/pub.1190680655)
 
 ## 🗺️ Overview
 
@@ -39,32 +40,33 @@ framework, that provides bindings to `skani`. It directly links to the
 - **sans I/O**: Everything happens in memory, in Python objects you control,
   making it easier to pass your sequences to `skani` without having to write
   them to a temporary file.
-
-*This library is still a work-in-progress, and in an experimental stage,
-but it should already pack enough features to be used in a standard pipeline.*
+- **100% compatible**: `skani` databases can be loaded in `pyskani`, and 
+  vice-versa. `pyskani` in particular allows you to write all supported 
+  formats included outdated ones that `skani` doesn't support anymore for
+  better backward compatibility.
 
 
 ## 🔧 Installing
 
 Pyskani can be installed directly from [PyPI](https://pypi.org/project/pyskani/),
-which hosts some pre-built CPython wheels for x86-64 Unix platforms, as well
+which hosts pre-built `abi3` wheels for common platforms, as well
 as the code required to compile from source with Rust:
 ```console
 $ pip install pyskani
 ```
-<!-- Otherwise, pyskani is also available as a [Bioconda](https://anaconda.org/bioconda/pyskani)
+Otherwise, pyskani is also available as a [Bioconda](https://anaconda.org/bioconda/pyskani)
 package:
 ```console
 $ conda install -c bioconda pyskani
-``` -->
+``` 
 
-In the event you have to compile the package from source, all the required
-Rust libraries are vendored in the source distribution, and a Rust compiler
-will be setup automatically if there is none on the host machine.
+In the event you have to compile the package from source, an up-to-date Rust 
+compiler will be required on the host machine.
 
 ## 🔖 Citation
 
-If you found Pyskani useful, please cite [our paper](https://academic.oup.com/nargab/article/7/3/lqaf095/8196481), as well as the original [skani paper](https://www.nature.com/articles/s41592-023-02018-3).
+If you found Pyskani useful, please cite [our paper](https://academic.oup.com/nargab/article/7/3/lqaf095/8196481), 
+as well as the original [skani paper](https://www.nature.com/articles/s41592-023-02018-3).
 
 To cite Pyskani:
 
@@ -91,8 +93,9 @@ record = Bio.SeqIO.read("vendor/skani/test_files/e.coli-EC590.fasta", "fasta")
 database.sketch("E. coli EC590", bytes(record.seq))
 ```
 
-For draft genomes, simply pass more arguments to the `sketch` method, for
-which you can use the splat operator:
+For draft genomes, simply pass more arguments to the 
+[`Database.sketch`](https://pyskani.readthedocs.io/en/latest/api/database.html#pyskani.Database.sketch) 
+method, for which you can use the splat operator:
 ```python
 database = pyskani.Database()
 records = Bio.SeqIO.parse("vendor/skani/test_files/e.coli-o157.fasta", "fasta")
@@ -100,23 +103,31 @@ sequences = (bytes(record.seq) for record in records)
 database.sketch("E. coli O157", *sequences)
 ```
 
+Once done adding sequences to the database, it can be saved locally with
+the [`Database.save`](https://pyskani.readthedocs.io/en/latest/api/database.html#pyskani.Database.save) 
+method, or used directly.
+
+
 ### 🗒️ Loading a database
 
 To load a database, either created from `skani` or `pyskani`, you can either
-load all sketches into memory, for fast querying:
+load all sketches into memory, for fast querying, with 
+[`Database.load`](https://pyskani.readthedocs.io/en/latest/api/database.html#pyskani.Database.load):
 ```python
 database = pyskani.Database.load("path/to/sketches")
 ```
 
-Or load the files lazily to save memory, at the cost of slower querying:
+Or load the files lazily to save memory, at the cost of slower querying,
+with [`Database.open`](https://pyskani.readthedocs.io/en/latest/api/database.html#pyskani.Database.open):
 ```python
 database = pyskani.Database.open("path/to/sketches")
 ```
 
 ### 🔎 Querying a database
 
-Once a database has been created or loaded, use the `Database.query` method
-to compute ANI for some query genomes:
+Once a database has been created or loaded, use the 
+[`Database.query`](https://pyskani.readthedocs.io/en/latest/api/database.html#pyskani.Database.query) 
+method to compute ANI for some query genomes:
 ```python
 record = Bio.SeqIO.read("vendor/skani/test_files/e.coli-K12.fasta", "fasta")
 hits = database.query("E. coli K12", bytes(record.seq))
@@ -127,7 +138,7 @@ hits = database.query("E. coli K12", bytes(record.seq))
 Computing ANI for closed genomes? You may also be interested in
 [`pyfastani`, a Python package for computing ANI](https://github.com/althonos/pyfastani)
 using the [FastANI method](https://www.nature.com/articles/s41467-018-07641-9)
-developed by [Chirag Jain](https://github.com/cjain7) *et al.*
+developed by [Chirag Jain](https://github.com/cjain7) *et al.*.
 
 ## 💭 Feedback
 
